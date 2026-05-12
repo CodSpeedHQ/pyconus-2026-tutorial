@@ -1,0 +1,16 @@
+CFP.md
+
+# Workshop datasets — generated locally via scripts/setup.py
+rounds/*/data/
+
+# Instructor-only reference implementations
+solutions/
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+
+# CodSpeed
+.codspeed/
