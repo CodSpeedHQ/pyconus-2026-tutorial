@@ -3,8 +3,8 @@ name = "pyconus-2026-tutorial"
 version = "0.1.0"
 description = "Python Performance Lab: Sharpening Your Instincts — PyCon US 2026 tutorial"
 readme = "README.md"
-requires-python = ">=3.13"
-dependencies = ["numpy>=2.0"]
+requires-python = ">=3.12"
+dependencies = ["numpy>=2.0,<2.4"]
 
 [dependency-groups]
 dev = ["pytest>=8.0", "pytest-codspeed>=5.0.1"]
