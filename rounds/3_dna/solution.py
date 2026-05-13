@@ -7,46 +7,52 @@ own faster implementation.
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor
+
 
 def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]:
     """Find every FASTA record whose sequence contains ``pattern``.
 
     Returns ``[(record_id, [positions...]), ...]`` in file order.
     """
-    # Read as bytes — skips the text-decode cost the baseline pays.
-    with open(fasta_path, "rb") as f:
-        data = f.read()
+    # Step 1: read the whole FASTA file as text and decode the pattern so the
+    # search below can use a single ``str`` API.
+    pattern_str = pattern.decode("ascii")
+    with open(fasta_path) as f:
+        text = f.read()
 
-    plen = len(pattern)
-    _find = bytes.find  # local lookup
     matches: list[tuple[str, list[int]]] = []
 
-    # Skip the first (empty) chunk before the first ">".
-    for record in data.split(b">")[1:]:
-        # Header ends at the first newline.
-        nl = record.index(b"\n")
-        # Build the contiguous sequence by stripping newlines — a single
-        # C-level bytes.replace() call instead of split-then-join.
-        sequence = record[nl + 1 :].replace(b"\n", b"")
+    with ThreadPoolExecutor() as executor:
+        # Step 2: split the file on '>' to peel off one record at a time. The
+        # first element is the chunk before any header (empty for well-formed
+        # files) and is skipped by the ``.strip()`` guard below.
+        records = [record for record in text.split(">") if record.strip()]
 
-        # Quick exit: most records do not contain the pattern at all.
-        # ``in`` delegates to a fast C memchr/memmem scan.
-        pos = _find(sequence, pattern)
-        if pos == -1:
-            continue
+        def process_record(record: str) -> tuple[str, list[int]] | None:
+            # Step 3: a record looks like ``"<id>\n<seq line 1>\n<seq line 2>\n..."``.
+            # The id is the first line; the remaining lines are joined back into a
+            # single contiguous sequence string.
+            lines = record.split("\n")
+            record_id = lines[0].strip()
+            sequence = "".join(lines[1:]).replace(" ", "")
 
-        record_id = record[:nl].strip().decode("ascii")
+            # Step 4: walk the sequence with ``str.find()``, advancing one byte
+            # past each hit so overlapping matches are reported too.
+            positions: list[int] = []
+            start = 0
+            while True:
+                pos = sequence.find(pattern_str, start)
+                if pos == -1:
+                    break
+                positions.append(pos)
+                start = pos + 1
 
-        # Collect all (overlapping) hit positions.
-        positions: list[int] = [pos]
-        start = pos + 1
-        while True:
-            pos = _find(sequence, pattern, start)
-            if pos == -1:
-                break
-            positions.append(pos)
-            start = pos + 1
+            if positions:
+                return (record_id, positions)
+            return None
 
-        matches.append((record_id, positions))
+        results = list(executor.map(process_record, records))
+        matches.extend(result for result in results if result is not None)
 
     return matches
