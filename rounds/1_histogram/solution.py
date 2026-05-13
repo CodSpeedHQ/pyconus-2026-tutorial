@@ -4,6 +4,7 @@
 passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
+import numpy as np
 
 
 def compute_histogram(path: str) -> dict[bytes, int]:
@@ -15,11 +16,16 @@ def compute_histogram(path: str) -> dict[bytes, int]:
     # Step 2: slide a 2-byte window across the buffer. For ``b"ABCD"`` the
     # iterations produce ``b"AB"``, ``b"BC"``, then ``b"CD"``. For each window,
     # bump the matching bucket in a ``dict`` keyed by the bigram itself.
-    counts: dict[bytes, int] = {}
+    counts= [[0] * 256 for _ in range(256)]
+    
     for i in range(len(data) - 1):
-        bigram = data[i : i + 2]
-        if bigram in counts:
-            counts[bigram] += 1
-        else:
-            counts[bigram] = 1
-    return counts
+        a, b = data[i], data[i + 1]
+        counts[a][b] += 1
+
+    result = {}
+    for i, row in enumerate(counts):
+        for j, count in enumerate(row):
+            if count > 0:
+                bigram = bytes([i, j])
+                result[bigram] = count
+    return result
