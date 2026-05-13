@@ -6,6 +6,24 @@ own faster implementation.
 """
 
 import re
+from concurrent.futures import ThreadPoolExecutor
+
+def find_match(args):
+        regex,record = args
+        # Step 3: a record looks like ``"<id>\n<seq line 1>\n<seq line 2>\n..."``.
+        # The id is the first line; the remaining lines are joined back into a
+        # single contiguous sequence string.
+        lines = record.split("\n")
+        record_id = lines[0].strip()
+        sequence = "".join(lines[1:]).replace(" ", "")
+
+        positions: list[int] = []
+        positions = [m.start() for m in regex.finditer(sequence)]
+        if positions:
+            return (record_id, positions)
+        else:
+            return None
+
 
 def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]:
     """Find every FASTA record whose sequence contains ``pattern``.
@@ -22,22 +40,17 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     pattern_str = pattern.decode('ascii')
     regex = re.compile(pattern_str)
 
-    # Step 2: split the file on '>' to peel off one record at a time. The
-    # first element is the chunk before any header (empty for well-formed
-    # files) and is skipped by the ``.strip()`` guard below.
-    for record in text.split(">"):
-        if not record.strip():
-            continue
+    with ThreadPoolExecutor() as ex:
+        futures = []
+        for record in text.split(">"):
+            if not record.strip():
+                continue
 
-        # Step 3: a record looks like ``"<id>\n<seq line 1>\n<seq line 2>\n..."``.
-        # The id is the first line; the remaining lines are joined back into a
-        # single contiguous sequence string.
-        lines = record.split("\n")
-        record_id = lines[0].strip()
-        sequence = "".join(lines[1:]).replace(" ", "")
-
-        positions: list[int] = []
-        positions = [m.start() for m in regex.finditer(sequence)]
-        if positions:
-            matches.append((record_id, positions))
+            t = ex.submit(find_match, args=(regex,record))
+            futures.append(t)
+    
+        for t in futures:
+            result = t.result()
+            if result:
+                matches.append(result)
     return matches
