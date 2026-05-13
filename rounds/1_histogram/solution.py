@@ -5,19 +5,17 @@ passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
 
+def compute_histogram(path: str) -> dict[bytes, int]:
+    with open(path, "rb") as f:
+        data = f.read()
 
-# def compute_histogram(path: str) -> dict[bytes, int]:
-    """Frequency of every 2-byte bigram in the file at ``path``."""
-    # TODO: Used chatgpt for optimization of byte-pair histogram 
-   # from .baseline import compute_histogram as _baseline
+    counts = {}
 
-    #return _baseline(path)
+    for a, b in zip(data, data[1:]):
+        k = (a << 8) | b
+        counts[k] = counts.get(k, 0) + 1
 
-def histogram_dict(counts: list[int]) -> dict[bytes, int]:
-    out = {}
-
-    for i, count in enumerate(counts):
-        if count:
-            out[i.to_bytes(2, "big")] = count
-
-    return out
+    return {
+        k.to_bytes(2, "big"): v
+        for k, v in counts.items()
+    }
