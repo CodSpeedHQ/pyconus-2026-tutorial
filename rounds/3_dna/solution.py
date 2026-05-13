@@ -4,10 +4,35 @@
 passes out of the box. Replace the body of ``find_matches`` with your
 own faster implementation.
 """
-import re
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor
 
-from .baseline import find_matches as _baseline
+import numpy as np
+
+
+def find_record_matches(pattern_str, sequence):
+    if not pattern_str or not sequence:
+        return []
+
+    # Convert strings to numpy byte arrays
+    seq_arr = np.frombuffer(sequence.encode(), dtype=np.uint8)
+    pat_arr = np.frombuffer(pattern_str.encode(), dtype=np.uint8)
+
+    pat_len = len(pat_arr)
+    seq_len = len(seq_arr)
+
+    if pat_len > seq_len:
+        return []
+
+    # Create a 2D view of the sequence using a sliding window (no data copy)
+    # Shape: (seq_len - pat_len + 1, pat_len)
+    shape = (seq_len - pat_len + 1, pat_len)
+    strides = (seq_arr.strides[0], seq_arr.strides[0])
+    windows = np.lib.stride_tricks.as_strided(seq_arr, shape=shape, strides=strides)
+
+    # Compare every window against the pattern in one vectorized operation
+    matches = np.all(windows == pat_arr, axis=1)
+
+    return np.where(matches)[0].tolist()
 
 
 def find_record_matches(pattern_str, sequence):
