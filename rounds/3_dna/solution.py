@@ -6,6 +6,8 @@ own faster implementation.
 """
 
 from concurrent.futures import ThreadPoolExecutor
+from mmap import mmap, ACCESS_READ
+from os import fstat
 
 
 def _scan_record(record: bytes, pattern: bytes) -> tuple[str, list[int]] | None:
@@ -22,8 +24,7 @@ def _scan_record(record: bytes, pattern: bytes) -> tuple[str, list[int]] | None:
     header, _, body = record.partition(b'\n')
     record_id = header.strip().decode('ascii')
 
-    # Keep the hot path in bytes so we avoid decoding each whole sequence.
-    # Whitespace is not part of the DNA sequence, so remove it before scanning.
+    # Clean up data before parsing
     sequence = (
         body.replace(b'\n', b'')
             .replace(b'\r', b'')
@@ -48,20 +49,33 @@ def _scan_record(record: bytes, pattern: bytes) -> tuple[str, list[int]] | None:
 
 
 def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]:
-    """Find every FASTA record whose sequence contains ``pattern``.
+    """ Find every FASTA record whose sequence contains ``pattern``.
 
     Returns ``[(record_id, [positions...]), ...]`` in file order.
     """
 
-    # Read once in binary mode so parsing and searching can stay on bytes.
     with open(fasta_path, 'rb') as f:
-        text = f.read()
+        if fstat(f.fileno()).st_size == 0:
+            return []
 
-    # Split into DNA sequences
-    records = [record for record in text.split(b'>') if record.strip()]
+        with mmap(f.fileno(), 0, access=ACCESS_READ) as text:
+            # Read the file as an mmap and break it up into DNA records
+            records: list[bytes] = []
+            start = text.find(b'>')
+            while start != -1:
+                end = text.find(b'>', start + 1)
+                if end == -1:
+                    record = text[start + 1:]
+                    start = -1
+                else:
+                    record = text[start + 1:end]
+                    start = end
 
-    # Scan records concurrently
-    with ThreadPoolExecutor() as executor:
-        results = executor.map(lambda record: _scan_record(record, pattern), records)
+                if record.strip():
+                    records.append(record)
 
-    return [result for result in results if result is not None]
+            # Scan records concurrently
+            with ThreadPoolExecutor() as executor:
+                results = executor.map(lambda record: _scan_record(record, pattern), records)
+
+            return [result for result in results if result is not None]
