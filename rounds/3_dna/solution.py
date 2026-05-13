@@ -6,6 +6,24 @@ own faster implementation.
 """
 
 from .baseline import find_matches as _baseline
+import regex
+from multiprocessing.pool import ThreadPool
+
+def match(record, pattern_str):
+    if not record.strip():
+        return None, []
+
+    # split record ID
+    lines = record.split("\n")
+    record_id = lines[0].strip()
+    sequence = "".join(lines[1:]).replace(" ", "")
+
+    # regex pattern match, get position if match
+    match_inds = []
+    for match in regex.finditer(pattern_str, sequence, overlapped=True):
+        match_inds.append(match.start())
+    
+    return record_id, match_inds
 
 
 def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]:
@@ -13,5 +31,19 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
 
     Returns ``[(record_id, [positions...]), ...]`` in file order.
     """
-    # TODO: remove this delegation and write your own implementation here.
-    return _baseline(fasta_path, pattern)
+    pattern_str = pattern.decode("ascii")
+    with open(fasta_path, "r") as f:
+        text = f.read()
+
+    results = []
+    records = text.split(">")
+    args = [(record, pattern_str) for record in records]
+
+    with ThreadPool(10) as pool:
+
+        for record_id, match_inds in pool.starmap(match, args):
+            if len(match_inds) > 0:
+                # append to results
+                results.append((record_id, match_inds))
+
+    return results
