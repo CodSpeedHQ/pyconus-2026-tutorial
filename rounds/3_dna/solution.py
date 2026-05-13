@@ -8,7 +8,6 @@ from concurrent.futures import ThreadPoolExecutor
 import numpy as np
 
 _NEWLINE = b"\n"
-_MAX_WORKERS = 12
 
 
 def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]:
@@ -23,9 +22,7 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
         data = file.read()
 
     records = data.split(b">")[1:]
-    worker_count = min(_MAX_WORKERS, os.cpu_count() or 1, len(records))
-    if worker_count <= 1:
-        return _scan_records(records, pattern_value, pattern_len)
+    worker_count = os.cpu_count()
 
     chunk_size = (len(records) + worker_count - 1) // worker_count
     chunks = [
