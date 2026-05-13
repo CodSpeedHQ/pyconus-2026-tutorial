@@ -6,9 +6,25 @@ own faster implementation.
 """
 
 
+import numpy as np
+ 
 def compute_histogram(path: str) -> dict[bytes, int]:
     """Frequency of every 2-byte bigram in the file at ``path``."""
-    #  more TODO: remove this delegation and write your own implementation here.
-    from .baseline import compute_histogram as _baseline
+    data = np.fromfile(path, dtype=np.uint8)
+   
+    if len(data) < 2:
+        return {}
+   
+    bigrams = (data[:-1].astype(np.uint16) << 8) | data[1:]
+    counts = np.bincount(bigrams, minlength=65536)
+   
+    result = {}
+    nonzero_indices = np.nonzero(counts)[0]
+   
+    for idx in nonzero_indices:
+        byte1 = (idx >> 8) & 0xFF
+        byte2 = idx & 0xFF
+        result[bytes([byte1, byte2])] = int(counts[idx])
+   
+    return result
 
-    return _baseline(path)
