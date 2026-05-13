@@ -8,7 +8,15 @@ own faster implementation.
 
 def compute_histogram(path: str) -> dict[bytes, int]:
     """Frequency of every 2-byte bigram in the file at ``path``."""
-    # TODO: remove this delegation and write your own implementation here.
-    from .baseline import compute_histogram as _baseline
+    with open(path, "rb") as f:
+        data = f.read()
 
-    return _baseline(path)
+    counts = [[0] * 256 for _ in range(256)]
+    for i in range(len(data) - 1):
+        counts[data[i]][data[i + 1]] += 1
+    return {
+        bytes((i, j)): count
+        for i in range(256)
+        for j in range(256)
+        if (count := counts[i][j])
+    }
