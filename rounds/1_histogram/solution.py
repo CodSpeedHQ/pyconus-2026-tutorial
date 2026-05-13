@@ -5,15 +5,16 @@ passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
 from collections import Counter
+from struct import unpack
 
 
 def get_biagrams(data):
-    i = 0
-    max_len = len(data) -1
-    while i < max_len:
-        biagram = data[i: i + 2]
-        yield biagram
-        i += 1
+    data_iter = iter(unpack(f'{len(data)}c', data))
+    val_0, val_1 = next(data_iter), next(data_iter)
+    for value in data_iter:
+        yield val_0+val_1
+        val_0, val_1 = val_1, value
+    yield val_0+val_1
 
 
 def compute_histogram(path: str) -> dict[bytes, int]:
