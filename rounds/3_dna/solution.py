@@ -34,7 +34,11 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
         lines = chunk.split(b"\n")
         record_id = lines[0][1:].strip().decode("ascii")
         sequence = b"".join(lines[1:]).replace(b" ", b"")
-        positions = [m.start() for m in regex.finditer(sequence)]
+        positions = []
+        start_pos = 0
+        while (hit := sequence.find(pattern, start_pos)) != -1:
+            positions.append(hit)
+            start_pos = hit + 1
         if positions:
             return (idx, (record_id, positions))
         return None
