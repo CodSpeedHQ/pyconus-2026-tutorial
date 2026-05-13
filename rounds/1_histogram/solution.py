@@ -1,70 +1,84 @@
 """Your Round 1 solution — byte-pair histogram.
 
-Strategy: count every 2-byte bigram in C-loop time with ``numpy.bincount``.
+Strategy: a tiny native C extension does the counting, and Python only walks
+the 65 536-bucket result once to materialize the ``dict[bytes, int]``.
 
-1. Read the payload as raw bytes and wrap it in a zero-copy ``uint8`` view.
-2. Reinterpret the buffer as ``uint16`` at two offsets (even bytes, odd bytes)
-   — together these two non-overlapping strides cover every overlapping
-   bigram in the file. Two ``np.bincount`` calls on the views, summed, give
-   the count of every possible 2-byte token.
-3. Walk the dense 65,536-bin array once in Python and emit a ``dict`` for the
-   nonzero entries, looking up pre-built ``bytes`` keys from a module-level
-   table so we never allocate two-byte ``bytes`` objects on the hot path.
-
-This relies on the host being little-endian (every modern x86/ARM target is);
-on a big-endian platform the fallback shift-and-or path is used. The bigram
-arrays are never materialized, so peak memory is the file size plus a 64 KiB
-counts buffer.
+- ``histogram_native.c`` mmaps the file, hints SEQUENTIAL access to the
+  kernel, and runs an 8x-unrolled hot loop that reads each overlapping
+  bigram as an unaligned ``uint16`` and bumps its bin. No fread copy, no
+  chunk-boundary bookkeeping, no per-bigram shift/or.
+- The extension is auto-compiled with ``cc -O3`` the first time it is
+  imported and cached under ``__pycache__/``. Rebuilds when the source
+  outpaces the binary.
+- The bin id is the LE-uint16 value of (b0, b1), i.e. ``b1 << 8 | b0``;
+  ``_KEY_TABLE`` is precomputed to match so the final dict build is a
+  single tight comprehension with no per-bigram byte object allocation.
 """
 
 from __future__ import annotations
 
+import ctypes
+import os
+import subprocess
 import sys
+from pathlib import Path
 
-import numpy as np
+assert sys.byteorder == "little", (
+    "histogram_native.c uses LE-encoded bin ids; port to BE if you need it."
+)
 
-_LITTLE_ENDIAN = sys.byteorder == "little"
-
-# Bigram id -> 2-byte key. The id encoding depends on which path we take.
-# Little-endian uint16 view of bytes (b0, b1) has value b1<<8 | b0, so the key
-# at index i is bytes((i & 0xFF, i >> 8)). The big-endian fallback uses the
-# more natural id (b0<<8 | b1), so the key at index i is bytes((i >> 8, i & 0xFF)).
-if _LITTLE_ENDIAN:
-    _KEY_TABLE: tuple[bytes, ...] = tuple(
-        bytes((i & 0xFF, i >> 8)) for i in range(65536)
-    )
-else:  # pragma: no cover — exercised only on big-endian hosts
-    _KEY_TABLE = tuple(bytes((i >> 8, i & 0xFF)) for i in range(65536))
-
-
-def _bincount_le(arr: np.ndarray) -> np.ndarray:
-    """Two-pass uint16 view, no bigram-id materialization."""
-    n = arr.size
-    even = arr[: n - (n % 2)].view(np.uint16)
-    odd_len = (n - 1) - ((n - 1) % 2)
-    odd = arr[1 : 1 + odd_len].view(np.uint16)
-    return np.bincount(even, minlength=65536) + np.bincount(
-        odd, minlength=65536
-    )
-
-
-def _bincount_be(arr: np.ndarray) -> np.ndarray:
-    """Portable shift-and-or path for big-endian hosts."""
-    bigrams = (arr[:-1].astype(np.uint16) << 8) | arr[1:]
-    return np.bincount(bigrams, minlength=65536)
+_BUCKETS = 65536
+_COUNTS_TYPE = ctypes.c_uint64 * _BUCKETS
+_KEY_TABLE = tuple(
+    bytes((i & 0xFF, (i >> 8) & 0xFF)) for i in range(_BUCKETS)
+)
+_LIB: ctypes.CDLL | None = None
 
 
 def compute_histogram(path: str) -> dict[bytes, int]:
     """Frequency of every 2-byte bigram in the file at ``path``."""
-    with open(path, "rb") as f:
-        data = f.read()
-    arr = np.frombuffer(data, dtype=np.uint8)
-    if arr.size < 2:
-        return {}
-    counts = _bincount_le(arr) if _LITTLE_ENDIAN else _bincount_be(arr)
+    counts = _COUNTS_TYPE()
+    rc = _load_library().histogram_count_file(os.fsencode(path), counts)
+    if rc != 0:
+        raise OSError(rc, os.strerror(rc), path)
     keys = _KEY_TABLE
-    out: dict[bytes, int] = {}
-    for i, n in enumerate(counts.tolist()):
-        if n:
-            out[keys[i]] = n
-    return out
+    return {keys[i]: n for i, n in enumerate(counts) if n}
+
+
+def _load_library() -> ctypes.CDLL:
+    global _LIB
+    if _LIB is not None:
+        return _LIB
+
+    source = Path(__file__).with_name("histogram_native.c")
+    cache_dir = Path(__file__).with_name("__pycache__")
+    cache_dir.mkdir(exist_ok=True)
+    library = cache_dir / "histogram_native.so"
+
+    if (
+        not library.exists()
+        or source.stat().st_mtime > library.stat().st_mtime
+    ):
+        cc = os.environ.get("CC", "cc")
+        subprocess.run(
+            [
+                cc,
+                "-O3",
+                "-std=c99",
+                "-shared",
+                "-fPIC",
+                str(source),
+                "-o",
+                str(library),
+            ],
+            check=True,
+        )
+
+    lib = ctypes.CDLL(str(library))
+    lib.histogram_count_file.argtypes = [
+        ctypes.c_char_p,
+        ctypes.POINTER(ctypes.c_uint64),
+    ]
+    lib.histogram_count_file.restype = ctypes.c_int
+    _LIB = lib
+    return lib
