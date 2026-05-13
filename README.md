@@ -1,3 +1,4 @@
+# rsjohnson
 # Python Performance Lab: Sharpening Your Instincts
 
 A PyCon US 2026 hands-on tutorial. You optimize intentionally slow Python code
