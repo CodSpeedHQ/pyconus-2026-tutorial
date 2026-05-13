@@ -3,6 +3,8 @@
 from __future__ import annotations
 import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
+import mmap
+import os
 
 
 def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]:
@@ -11,38 +13,39 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     Returns ``[(record_id, [positions...]), ...]`` in file order.
     """
     # Read as bytes — no decode overhead, pattern stays as bytes.
-    with open(fasta_path, "rb") as f:
-        data = f.read()
-
-    # Pre-compile a lookahead regex so overlapping matches are found in one pass.
     regex = re.compile(b"(?=" + re.escape(pattern) + b")")
+    with open(fasta_path, "rb") as f:
+        with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+            data = bytes(mm)
+        size = len(data)
 
-    def process_record(record: bytes) -> tuple[str, list[int]] | None:
-        if not record.strip():
-            return None
-        lines = record.split(b"\n")
-        record_id = lines[0].strip().decode("ascii")
+    # Find record boundaries without copying data
+    offsets = [0]
+    pos = data.find(b">", 1)
+    while pos != -1:
+        offsets.append(pos)
+        pos = data.find(b">", pos + 1)
+    offsets.append(size)
+
+    def process_record(
+        start: int, end: int, idx: int
+    ) -> tuple[int, tuple[str, list[int]]] | None:
+        chunk = data[start:end]
+        lines = chunk.split(b"\n")
+        record_id = lines[0][1:].strip().decode("ascii")
         sequence = b"".join(lines[1:]).replace(b" ", b"")
         positions = [m.start() for m in regex.finditer(sequence)]
         if positions:
-            return (record_id, positions)
+            return (idx, (record_id, positions))
         return None
 
-    # Split on b'>' — first chunk is empty for well-formed files.
-    records = data.split(b">")[1:]  # skip leading empty chunk
+    max_workers = min(32, (os.cpu_count() or 1) * 2)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        futures = [
+            executor.submit(process_record, offsets[i], offsets[i + 1], i)
+            for i in range(len(offsets) - 1)
+        ]
+        results = [r for f in as_completed(futures) if (r := f.result()) is not None]
 
-    results: list[tuple[str, list[int]]] = []
-
-    # re operations release the GIL, so ThreadPoolExecutor gives real parallelism.
-    with ThreadPoolExecutor() as executor:
-        # Submit in order, preserve file order via index.
-        futures = {executor.submit(process_record, r): i for i, r in enumerate(records)}
-        ordered: list[tuple[int, tuple[str, list[int]]]] = []
-        for future in as_completed(futures):
-            result = future.result()
-            if result is not None:
-                ordered.append((futures[future], result))
-
-    ordered.sort(key=lambda x: x[0])
-    results = [r for _, r in ordered]
-    return results
+    results.sort(key=lambda x: x[0])
+    return [r for _, r in results]
