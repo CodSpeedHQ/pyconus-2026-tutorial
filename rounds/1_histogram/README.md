@@ -15,12 +15,6 @@ full universe is `256 * 256 = 65,536` distinct tokens.
 - Output: a `dict` (or equivalent) keyed by 2-byte token, mapped to an `int` count.
 - Universe: up to 65,536 distinct bigrams.
 
-## What "fast" means here
-
-Primarily **memory footprint** and **end-to-end walltime**. The naive
-approach allocates an enormous number of tiny `bytes` objects, and those
-allocations are exactly the cost you want to drive down.
-
 ## Files
 
 | File                | Purpose                                                                                                                   |

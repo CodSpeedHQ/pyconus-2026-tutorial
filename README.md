@@ -8,8 +8,8 @@ across three rounds plus a team challenge, measuring every change with
 
 | Round                      | Topic                | Skills                                |
 | -------------------------- | -------------------- | ------------------------------------- |
-| [1](rounds/1_histogram/)   | Byte-pair histogram  | Data representation, memory           |
-| [2](rounds/2_corruption/)  | Corruption scanner   | Streaming, parallelism, vectorization |
+| [1](rounds/1_histogram/)   | Byte-pair histogram  | Data representation, vectorization    |
+| [2](rounds/2_corruption/)  | Corruption scanner   | Vectorization, parallelism            |
 | [3](rounds/3_dna/) (final) | DNA sequence matcher | Everything above, as a team challenge |
 
 Each round ships an intentionally slow `baseline.py` (a read-only reference),
