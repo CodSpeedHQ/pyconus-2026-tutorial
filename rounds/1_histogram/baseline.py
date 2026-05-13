@@ -5,9 +5,10 @@ tokens) in a binary payload.
 """
 
 from collections import Counter, deque
-from pathlib import Path
 
 
 def compute_histogram(path: str) -> dict[bytes, int]:
     """Frequency of every 2-byte bigram in the file at ``path``."""
-    return Counter(deque(Path(path).read_bytes(), maxlen=2))
+    with open(path, "rb") as f:
+        data = f.read()
+    return Counter(deque(data, maxlen=2))
