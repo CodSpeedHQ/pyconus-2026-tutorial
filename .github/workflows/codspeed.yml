@@ -50,7 +50,7 @@ jobs:
         run: uv run python scripts/setup.py
 
       - name: Run benchmarks
-        uses: CodSpeedHQ/action@v3
+        uses: CodSpeedHQ/action@v4
         with:
           mode: walltime
           run: uv run pytest --codspeed
