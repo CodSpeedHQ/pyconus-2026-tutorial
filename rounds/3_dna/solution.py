@@ -85,7 +85,8 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
         sequences.append((record_id, sequence))
 
     # Create a pool of threads
-    pool = ThreadPoolExecutor(max_workers=len(sequences))
+    pool = ThreadPoolExecutor(max_workers=16)
+
     for record_id, sequence in sequences:
         pool.submit(
             find_matches_in_sequence,
@@ -94,6 +95,14 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
             pattern_str,
             matches,
         )
+    # Or
+    # pool.map(
+    #     lambda args: find_matches_in_sequence(*args),
+    #     [
+    #         (record_id, sequence, pattern_str, matches)
+    #         for record_id, sequence in sequences
+    #     ],
+    # )
     # Wait for all threads to finish
     pool.shutdown(wait=True)
 
