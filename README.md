@@ -1,4 +1,4 @@
-# Python Performance Lab: Sharpening Your Instincts
+# Python Performance Lab: Sharpening Your Instincts - `adriencaccia`
 
 A PyCon US 2026 hands-on tutorial. You optimize intentionally slow Python code
 across three rounds plus a team challenge, measuring every change with
