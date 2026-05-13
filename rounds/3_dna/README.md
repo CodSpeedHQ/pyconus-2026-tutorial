@@ -47,16 +47,6 @@ uv run pytest rounds/3_dna/
 uv run pytest --codspeed rounds/3_dna/
 ```
 
-## Toolbox for this round
-
-This round rewards combining techniques from earlier rounds:
-
-- **Bytes end-to-end** (Round 1): never `.decode()` the file.
-- **Streaming + buffer reuse** (Round 2): parse records as they're read; don't
-  slurp the file.
-- **C-level search** : `bytes.find()` over chunks beats anything you'll
-  write in Python.
-- **Parallelism**: split the file into byte ranges, scan in parallel, then
-  reconcile records that cross chunk boundaries.
-- **Top-K without sorting** (introduced if needed): if the leaderboard scores
-  on "top K hottest records," keep a small heap as you stream results.
+```bash
+codspeed run --mode walltime -- uv run pytest --codspeed rounds/3_dna/
+```

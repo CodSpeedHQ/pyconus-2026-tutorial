@@ -46,15 +46,6 @@ uv run pytest rounds/2_corruption/
 uv run pytest --codspeed rounds/2_corruption/
 ```
 
-## Toolbox for this round
-
-- Chunked streaming with `readinto()` into a reusable `bytearray` (keeps peak
-  memory flat regardless of file size).
-- `memoryview` to compare chunks without slicing.
-- NumPy: view each chunk as `np.uint8`, compute `diff = a != b`, then turn
-  the index array into `(offset, length)` ranges via `np.diff` / boundary
-  detection.
-- Async I/O pipelining: overlap disk reads with compare work using a small
-  queue of chunks.
-- Free-threaded CPython: split the file into chunks, scan them in parallel,
-  then fix up boundary ranges in a final merge step.
+```bash
+codspeed run --mode walltime -- uv run pytest --codspeed rounds/2_corruption/
+```

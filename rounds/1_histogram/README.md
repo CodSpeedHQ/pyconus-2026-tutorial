@@ -23,12 +23,12 @@ allocations are exactly the cost you want to drive down.
 
 ## Files
 
-| File                  | Purpose                                                                                                                          |
-| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
-| `baseline.py`         | Intentionally slow starting point. **Don't edit:** it is the reference for the comparison.                                       |
-| `solution.py`         | **Edit this.** Starts out delegating to `baseline.py`; replace with your faster implementation.                                  |
-| `gen_data.py`         | Generates `data/payload.bin` and `data/fixture/payload.bin`.                                                                     |
-| `test_histogram.py`   | Correctness tests and the pytest-codspeed benchmark. Every test is parametrized over both the baseline and your solution.        |
+| File                | Purpose                                                                                                                   |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
+| `baseline.py`       | Intentionally slow starting point. **Don't edit:** it is the reference for the comparison.                                |
+| `solution.py`       | **Edit this.** Starts out delegating to `baseline.py`; replace with your faster implementation.                           |
+| `gen_data.py`       | Generates `data/payload.bin` and `data/fixture/payload.bin`.                                                              |
+| `test_histogram.py` | Correctness tests and the pytest-codspeed benchmark. Every test is parametrized over both the baseline and your solution. |
 
 ## Generate the data
 
@@ -58,17 +58,5 @@ Same benchmarks, run through the CodSpeed CLI for low-noise instrumented
 measurements:
 
 ```bash
-codspeed run uv run pytest --codspeed rounds/1_histogram/
+codspeed run --mode walltime -- uv run pytest --codspeed rounds/1_histogram/
 ```
-
-## Toolbox for this round
-
-You do not need all of these. Pick a few and measure.
-
-- Stay in `bytes` end-to-end; skip the text-mode round-trip.
-- Use a `memoryview` over the buffer to avoid slice allocations.
-- Represent each bigram as an `int` (`(b0 << 8) | b1`) and count into a
-  preallocated `array('I')` (or `list`) of length 65,536.
-- Stream with `readinto()` into a reusable `bytearray` to keep peak memory
-  flat.
-- Convert back to `dict[bytes, int]` only at the very end, or change the API.
