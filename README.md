@@ -32,6 +32,15 @@ Generate smaller datasets on lower-spec machines:
 uv run scripts/setup.py --round1-mb 10 --round2-mb 32 --round3-mb 100
 ```
 
+### CodSpeed CLI
+
+Install the [CodSpeed CLI](https://codspeed.io/docs/cli) to be able to run benchmarks
+with automated profiling and low-noise instrumentation.
+
+```bash
+curl -L https://codspeed.io/install.sh | sh
+```
+
 ## Working on a round
 
 Every round directory ships its own `README.md`. The commands are the same
@@ -44,8 +53,8 @@ uv run pytest rounds/1_histogram/
 # Walltime benchmark against the full dataset.
 uv run pytest --codspeed rounds/1_histogram/
 
-# Same, run through the CodSpeed CLI for low-noise instrumented measurements.
-codspeed run uv run pytest --codspeed rounds/1_histogram/
+# Same, run through the CodSpeed CLI with the walltime mode
+codspeed run --mode walltime -- uv run pytest --codspeed rounds/1_histogram/
 ```
 
 Edit `solution.py` to optimize. Leave `baseline.py` alone so the side-by-side
