@@ -5,10 +5,20 @@ passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
 
+import numpy as np
+
 
 def compute_histogram(path: str) -> dict[bytes, int]:
     """Frequency of every 2-byte bigram in the file at ``path``."""
-    # TODO: remove this delegation and write your own implementation here.
-    from .baseline import compute_histogram as _baseline
+    with open(path, "rb") as f:
+        data = f.read()
 
-    return _baseline(path)
+    arr = np.frombuffer(data, dtype=np.uint8)
+    # Encode each bigram as a uint16 index: high_byte * 256 + low_byte
+    indices = arr[:-1].astype(np.uint16) * 256 + arr[1:]
+    counts = np.bincount(indices, minlength=65536)
+
+    result: dict[bytes, int] = {}
+    for idx in np.nonzero(counts)[0]:
+        result[bytes([idx >> 8, idx & 0xFF])] = int(counts[idx])
+    return result
