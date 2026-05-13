@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import numpy as np
+
 _NEWLINE = b"\n"
 
 
@@ -15,6 +17,9 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     if not pattern:
         return []
 
+    pattern_values = np.frombuffer(pattern, dtype=np.uint8)
+    pattern_len = len(pattern)
+
     with open(fasta_path, "rb") as file:
         data = file.read()
 
@@ -22,14 +27,24 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     for record in data.split(b">")[1:]:
         record_id, _, wrapped_sequence = record.partition(_NEWLINE)
         sequence = wrapped_sequence.replace(_NEWLINE, b"")
+        sequence_len = len(sequence)
+        if sequence_len < pattern_len:
+            continue
 
-        positions: list[int] = []
-        pos = sequence.find(pattern)
-        while pos != -1:
-            positions.append(pos)
-            pos = sequence.find(pattern, pos + 1)
+        sequence_values = np.frombuffer(sequence, dtype=np.uint8)
+        positions_mask = (
+            sequence_values[: sequence_len - pattern_len + 1] == pattern_values[0]
+        )
+        for pattern_index in range(1, pattern_len):
+            positions_mask &= (
+                sequence_values[
+                    pattern_index : sequence_len - pattern_len + 1 + pattern_index
+                ]
+                == pattern_values[pattern_index]
+            )
 
-        if positions:
-            matches.append((record_id.decode("ascii"), positions))
+        positions = np.nonzero(positions_mask)[0]
+        if positions.size:
+            matches.append((record_id.decode("ascii"), positions.tolist()))
 
     return matches
