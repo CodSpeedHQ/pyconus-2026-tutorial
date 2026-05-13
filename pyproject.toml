@@ -1,0 +1,21 @@
+[project]
+name = "pyconus-2026-tutorial"
+version = "0.1.0"
+description = "Python Performance Lab: Sharpening Your Instincts — PyCon US 2026 tutorial"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "numpy>=2.0",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pytest-codspeed>=3.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["rounds"]
+# importlib avoids module-name collisions across the round directories
+# (every round has its own baseline.py).
+addopts = "--import-mode=importlib"
