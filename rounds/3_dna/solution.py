@@ -45,6 +45,7 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
         threads.append(thread)
     for thread in threads:
         thread.join()
+
     return matches
 
 def match_record(record_id, sequence, pattern_str, matches):
