@@ -4,40 +4,10 @@
 passes out of the box. Replace the body of ``find_matches`` with your
 own faster implementation.
 """
+import os
 from concurrent.futures import ThreadPoolExecutor
 
-import numpy as np
-
-
-def find_record_matches(pattern_str, sequence):
-    if not pattern_str or not sequence:
-        return []
-
-    # Convert strings to numpy byte arrays
-    seq_arr = np.frombuffer(sequence.encode(), dtype=np.uint8)
-    pat_arr = np.frombuffer(pattern_str.encode(), dtype=np.uint8)
-
-    pat_len = len(pat_arr)
-    seq_len = len(seq_arr)
-
-    if pat_len > seq_len:
-        return []
-
-    # Create a 2D view of the sequence using a sliding window (no data copy)
-    # Shape: (seq_len - pat_len + 1, pat_len)
-    shape = (seq_len - pat_len + 1, pat_len)
-    strides = (seq_arr.strides[0], seq_arr.strides[0])
-    windows = np.lib.stride_tricks.as_strided(seq_arr, shape=shape, strides=strides)
-
-    # Compare every window against the pattern in one vectorized operation
-    matches = np.all(windows == pat_arr, axis=1)
-
-    return np.where(matches)[0].tolist()
-
-
-def find_record_matches(pattern_str, sequence):
-    # Step 4: walk the sequence with ``str.find()``, advancing one byte
-    # past each hit so overlapping matches are reported too.
+def _find_record_matches(pattern_str, sequence):
     positions: list[int] = []
     start = 0
     while True:
@@ -48,41 +18,66 @@ def find_record_matches(pattern_str, sequence):
         start = pos + 1
     return positions
 
+
+def _search_chunk(fasta_path, chunk_start, chunk_end, pattern_str):
+    with open(fasta_path, "r") as f:
+        f.seek(chunk_start)
+        if chunk_end is None:
+            text = f.read()
+        else:
+            # One bulk read for the chunk, then a few readline() calls to
+            # complete the last record that extends past our boundary.
+            text = f.read(chunk_end - chunk_start)
+            while True:
+                line = f.readline()
+                if not line or line.startswith(">"):
+                    break
+                text += line
+
+    # For chunks that don't start at byte 0, skip the partial-record fragment
+    # at the front (bytes belonging to the previous chunk's last record).
+    if chunk_start > 0:
+        if not text.startswith(">"):
+            idx = text.find("\n>")
+            if idx == -1:
+                return []
+            text = text[idx + 1:]  # keep the ">"
+
+    results = []
+    for record in text.split(">"):
+        if not record.strip():
+            continue
+        lines = record.split("\n")
+        record_id = lines[0].strip()
+        sequence = "".join(lines[1:]).replace(" ", "")
+        positions = _find_record_matches(pattern_str, sequence)
+        if positions:
+            results.append((record_id, positions))
+    return results
+
+
 def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]:
     """Find every FASTA record whose sequence contains ``pattern``.
 
     Returns ``[(record_id, [positions...]), ...]`` in file order.
     """
-    # Step 1: read the whole FASTA file as text and decode the pattern so the
-    # search below can use a single ``str`` API.
     pattern_str = pattern.decode("ascii")
-    with open(fasta_path, "r") as f:
-        text = f.read()
+    num_threads = os.cpu_count() or 4
+    file_size = os.path.getsize(fasta_path)
+    chunk_size = max(1, file_size // num_threads)
 
-    # Step 2: split the file on '>' to peel off one record at a time. The
-    # first element is the chunk before any header (empty for well-formed
-    # files) and is skipped by the ``.strip()`` guard below.
-
-    futures = {}
-
-    with ThreadPoolExecutor(max_workers=None) as executor:
-
-        for record in text.split(">"):
-            if not record.strip():
-                continue
-
-            # Step 3: a record looks like ``"<id>\n<seq line 1>\n<seq line 2>\n..."``.
-            # The id is the first line; the remaining lines are joined back into a
-            # single contiguous sequence string.
-            lines = record.split("\n")
-            record_id = lines[0].strip()
-            sequence = "".join(lines[1:]).replace(" ", "")
-
-            futures[executor.submit(find_record_matches, pattern_str, sequence)] = record_id
-
-
-    return [
-        (record_id, positions)
-        for future, record_id in futures.items()
-        if (positions := future.result())
+    chunks = [
+        (i * chunk_size, (i + 1) * chunk_size if i < num_threads - 1 else None)
+        for i in range(num_threads)
     ]
+
+    with ThreadPoolExecutor(max_workers=num_threads) as executor:
+        futures = [
+            executor.submit(_search_chunk, fasta_path, start, end, pattern_str)
+            for start, end in chunks
+        ]
+
+    results = []
+    for future in futures:
+        results.extend(future.result())
+    return results
