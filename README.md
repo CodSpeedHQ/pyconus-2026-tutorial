@@ -18,13 +18,13 @@ You'll need Python 3.13 or newer and [`uv`](https://docs.astral.sh/uv/).
 
 ```bash
 uv sync                              # install pytest, pytest-codspeed, numpy
-python scripts/setup.py              # generate all datasets (~1.3 GB total)
+python scripts/setup.py              # generate all datasets (~650 MB total)
 ```
 
 Smaller machines:
 
 ```bash
-python scripts/setup.py --round1-mb 20 --round2-mb 64 --round3-mb 100
+python scripts/setup.py --round1-mb 10 --round2-mb 32 --round3-mb 100
 ```
 
 ## Run a round

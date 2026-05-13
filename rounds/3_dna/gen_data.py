@@ -2,7 +2,7 @@
 
 Run from anywhere:
 
-    python rounds/3_dna/gen_data.py            # default ~1 GB
+    python rounds/3_dna/gen_data.py            # default ~512 MB
     python rounds/3_dna/gen_data.py --size-mb 100
 
 Output:
@@ -26,9 +26,14 @@ ALPHABET = b"ACGT"
 PATTERN = b"AGTCCGTA"  # the pattern attendees will search for
 LINE_WIDTH = 80
 
+# Map every byte 0–255 to one of ACGT via the low 2 bits. Pre-computed once so
+# random sequence generation can run entirely in C: `rng.randbytes(n)` produces
+# raw bytes, then `.translate(_BYTE_TO_ACGT)` maps them to the DNA alphabet.
+_BYTE_TO_ACGT = bytes(b"ACGT"[b & 3] for b in range(256))
+
 
 def _random_seq(rng: random.Random, length: int) -> bytearray:
-    return bytearray(rng.choices(ALPHABET, k=length))
+    return bytearray(rng.randbytes(length).translate(_BYTE_TO_ACGT))
 
 
 def _inject_pattern(seq: bytearray, rng: random.Random, pattern: bytes, count: int) -> list[int]:
@@ -108,7 +113,7 @@ def _write_fasta(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--size-mb", type=int, default=1024)
+    parser.add_argument("--size-mb", type=int, default=512)
     parser.add_argument("--seed", type=int, default=42)
     args = parser.parse_args()
 

@@ -2,8 +2,8 @@
 
 Run from anywhere:
 
-    python rounds/2_corruption/gen_data.py             # default 128 MB
-    python rounds/2_corruption/gen_data.py --size-mb 2048
+    python rounds/2_corruption/gen_data.py             # default 64 MB
+    python rounds/2_corruption/gen_data.py --size-mb 1024
 
 Output:
     rounds/2_corruption/data/reference.bin
@@ -115,7 +115,7 @@ def _generate(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--size-mb", type=int, default=128)
+    parser.add_argument("--size-mb", type=int, default=64)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--corruptions",

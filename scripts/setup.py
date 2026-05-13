@@ -25,9 +25,9 @@ ROUNDS = {
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--round1-mb", type=int, default=20)
-    parser.add_argument("--round2-mb", type=int, default=128)
-    parser.add_argument("--round3-mb", type=int, default=1024)
+    parser.add_argument("--round1-mb", type=int, default=10)
+    parser.add_argument("--round2-mb", type=int, default=64)
+    parser.add_argument("--round3-mb", type=int, default=512)
     parser.add_argument(
         "--skip",
         nargs="*",

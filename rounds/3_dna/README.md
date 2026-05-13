@@ -6,7 +6,7 @@ Given a FASTA-like file (`genome.fasta`) containing DNA sequences using only
 `A`, `C`, `G`, `T`, find **every record whose sequence contains a target
 pattern**, along with the positions of each occurrence inside that record.
 
-- Input: `data/genome.fasta` (default ~1 GB; scale down with `--size-mb`)
+- Input: `data/genome.fasta` (default ~512 MB; scale with `--size-mb`)
 - Target pattern: `b"AGTCCGTA"` (recorded in `data/truth.json`)
 - Output: `list[tuple[record_id, list[int positions]]]` in file order
 
@@ -31,7 +31,7 @@ C-level routines.
 ## Generate the data
 
 ```bash
-python rounds/3_dna/gen_data.py             # default ~1 GB
+python rounds/3_dna/gen_data.py             # default ~512 MB
 python rounds/3_dna/gen_data.py --size-mb 100
 ```
 

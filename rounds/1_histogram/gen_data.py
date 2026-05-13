@@ -2,7 +2,7 @@
 
 Run from anywhere:
 
-    python rounds/1_histogram/gen_data.py            # default 20 MB
+    python rounds/1_histogram/gen_data.py            # default 10 MB
     python rounds/1_histogram/gen_data.py --size-mb 50
 
 Output:
@@ -52,8 +52,8 @@ def main() -> None:
     parser.add_argument(
         "--size-mb",
         type=int,
-        default=20,
-        help="Size of the full benchmark payload in MB (default: 20).",
+        default=10,
+        help="Size of the full benchmark payload in MB (default: 10).",
     )
     parser.add_argument(
         "--seed",

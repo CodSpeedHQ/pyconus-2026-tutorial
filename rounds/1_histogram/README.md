@@ -6,7 +6,7 @@ Given a binary payload of up to a few hundred megabytes, count the frequency of
 every **2-byte bigram**. The output is a mapping from each observed bigram to
 its occurrence count.
 
-- Input: `data/payload.bin` (default 20 MB, biased byte distribution)
+- Input: `data/payload.bin` (default 10 MB, biased byte distribution)
 - Output: `dict` (or equivalent) keyed by 2-byte token → integer count
 - Universe: up to 65,536 distinct bigrams
 
@@ -28,7 +28,7 @@ exactly the cost you want to drive down.
 ## Generate the data
 
 ```bash
-python rounds/1_histogram/gen_data.py            # default 20 MB
+python rounds/1_histogram/gen_data.py            # default 10 MB
 python rounds/1_histogram/gen_data.py --size-mb 50
 ```
 

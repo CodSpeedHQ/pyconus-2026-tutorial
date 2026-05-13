@@ -7,8 +7,8 @@ possibly damaged `corrupted.bin` — find **every byte range** where they differ
 and return them as a list of `(offset, length)` tuples. Adjacent differing
 bytes must be merged into a single range.
 
-- Input: `data/reference.bin` and `data/corrupted.bin` (default 128 MB each;
-  scale up to 2 GB via `--size-mb 2048` as a stretch goal)
+- Input: `data/reference.bin` and `data/corrupted.bin` (default 64 MB each;
+  scale up to 1 GB via `--size-mb 1024` as a stretch goal)
 - Output: `list[tuple[int, int]]` sorted by offset, no overlaps
 
 ## What "fast" means here
@@ -30,8 +30,8 @@ do the actual comparison in C (NumPy, `bytes` equality, etc.).
 ## Generate the data
 
 ```bash
-python rounds/2_corruption/gen_data.py                 # default 128 MB
-python rounds/2_corruption/gen_data.py --size-mb 2048  # 2 GB stretch goal
+python rounds/2_corruption/gen_data.py                 # default 64 MB
+python rounds/2_corruption/gen_data.py --size-mb 1024  # 1 GB stretch goal
 ```
 
 ## Verify correctness
