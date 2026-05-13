@@ -1,7 +1,6 @@
 """Your Round 3 solution — DNA sequence matcher."""
 
 from __future__ import annotations
-import re
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import mmap
 import os
@@ -13,7 +12,6 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     Returns ``[(record_id, [positions...]), ...]`` in file order.
     """
     # Read as bytes — no decode overhead, pattern stays as bytes.
-    regex = re.compile(b"(?=" + re.escape(pattern) + b")")
     with open(fasta_path, "rb") as f:
         with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
             data = bytes(mm)
@@ -32,8 +30,8 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     ) -> tuple[int, tuple[str, list[int]]] | None:
         chunk = data[start:end]
         lines = chunk.split(b"\n")
-        record_id = lines[0][1:].strip().decode("ascii")
-        sequence = b"".join(lines[1:]).replace(b" ", b"")
+        record_id = lines[0][1:].rstrip().decode("ascii")
+        sequence = b"".join(lines[1:])
         positions = []
         start_pos = 0
         while (hit := sequence.find(pattern, start_pos)) != -1:
