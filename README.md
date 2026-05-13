@@ -2,7 +2,7 @@
 
 A PyCon US 2026 hands-on tutorial. You optimize intentionally slow Python code
 across three rounds plus a team challenge, measuring every change with
-[CodSpeed](https://codspeed.io).
+[CodSpeed](https://codspeed.io)i...
 
 ## Rounds
 

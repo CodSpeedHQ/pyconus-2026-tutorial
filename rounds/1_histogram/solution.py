@@ -4,11 +4,18 @@
 passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
+from collections import defaultdict
 
 
 def compute_histogram(path: str) -> dict[bytes, int]:
-    """Frequency of every 2-byte bigram in the file at ``path``."""
-    # TODO: remove this delegation and write your own implementation here.
-    from .baseline import compute_histogram as _baseline
 
-    return _baseline(path)
+    """Frequency of every 2-byte bigram in the file at ``path``."""
+    counts: dict[bytes, int] = defaultdict(int)
+
+    with open(path, "rb") as f:
+        data = f.read()
+
+    for i in range(len(data) - 1):
+        counts[data[i:i + 2]] += 1
+
+    return dict(counts)
