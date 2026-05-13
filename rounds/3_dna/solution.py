@@ -7,7 +7,6 @@ own faster implementation.
 
 from __future__ import annotations
 
-import mmap
 import os
 from concurrent.futures import ThreadPoolExecutor
 
@@ -17,7 +16,7 @@ _NUM_WORKERS = os.cpu_count() or 4
 
 
 def _search_chunk(
-    data: bytes | mmap.mmap,
+    data: bytes,
     pattern: bytes,
     records: list[tuple[int, int]],
 ) -> list[tuple[str, list[int]]]:
@@ -25,16 +24,12 @@ def _search_chunk(
     results: list[tuple[str, list[int]]] = []
     for rec_start, rec_end in records:
         nl = data.index(b"\n", rec_start)
-        raw = data[nl + 1 : rec_end]
+        seq = data[nl + 1 : rec_end].translate(_DELETE_TABLE, _DELETE_CHARS)
 
-        seq = raw.translate(_DELETE_TABLE, _DELETE_CHARS)
-
-        # Quick check: if the pattern isn't in the cleaned sequence, skip.
         if pattern not in seq:
             continue
 
         record_id = data[rec_start + 1 : nl].strip().decode("ascii")
-        seq = raw.translate(_DELETE_TABLE, _DELETE_CHARS)
 
         positions: list[int] = []
         start = 0
@@ -57,21 +52,17 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     Returns ``[(record_id, [positions...]), ...]`` in file order.
     """
     with open(fasta_path, "rb") as f:
-        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        data = f.read()
 
     boundaries: list[tuple[int, int]] = []
-    pos = mm.find(b">")
+    pos = data.find(b">")
     while pos != -1:
-        nxt = mm.find(b">", pos + 1)
-        boundaries.append((pos, nxt if nxt != -1 else mm.size()))
+        nxt = data.find(b">", pos + 1)
+        boundaries.append((pos, nxt if nxt != -1 else len(data)))
         pos = nxt
 
     if not boundaries:
-        mm.close()
         return []
-
-    data = mm[:]
-    mm.close()
 
     n = len(boundaries)
     chunk_size = max(1, n // _NUM_WORKERS)
