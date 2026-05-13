@@ -5,10 +5,29 @@ passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
 
+from array import array
+
 
 def compute_histogram(path: str) -> dict[bytes, int]:
-    """Frequency of every 2-byte bigram in the file at ``path``."""
-    # TODO: remove this delegation and write your own implementation here.
-    from .baseline import compute_histogram as _baseline
+    with open(path, "rb") as f:
+        data = f.read()
 
-    return _baseline(path)
+    n = len(data)
+    if n < 2:
+        return {}
+
+    # 65,536 possible 2-byte combinations
+    counts = array("I", [0]) * 65536
+
+    prev = data[0]
+
+    for i in range(1, n):
+        curr = data[i]
+        counts[(prev << 8) | curr] += 1
+        prev = curr
+
+    return {
+        i.to_bytes(2, "big"): count
+        for i, count in enumerate(counts)
+        if count
+    }
