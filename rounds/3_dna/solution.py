@@ -25,6 +25,7 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     # Step 2: split the file on '>' to peel off one record at a time. The
     # first element is the chunk before any header (empty for well-formed
     # files) and is skipped by the ``.strip()`` guard below.
+    sequences = []
     for record in text.split(b">"):
         if not record.strip():
             continue
@@ -35,18 +36,26 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
         lines = record.split(b"\n")
         record_id = lines[0].strip().decode("ascii")
         sequence = b"".join(lines[1:]).replace(b" ", b"").decode("ascii")
-
-        # Step 4: walk the sequence with ``str.find()``, advancing one byte
-        # past each hit so overlapping matches are reported too.
-        positions: list[int] = []
-        start = 0
-        while True:
-            pos = sequence.find(pattern_str, start)
-            if pos == -1:
-                break
-            positions.append(pos)
-            start = pos + 1
-
-        if positions:
-            matches.append((record_id, positions))
+        sequences.append((record_id, sequence))
+    
+    threads = []
+    for record_id, sequence in sequences:
+        thread = Thread(target=match_record, args=(record_id, sequence, pattern_str, matches))
+        thread.start()
+        threads.append(thread)
+    for thread in threads:
+        thread.join()
     return matches
+
+def match_record(record_id, sequence, pattern_str, matches):
+    positions: list[int] = []
+    start = 0
+    while True:
+        pos = sequence.find(pattern_str, start)
+        if pos == -1:
+            break
+        positions.append(pos)
+        start = pos + 1
+
+    if positions:
+        matches.append((record_id, positions))
