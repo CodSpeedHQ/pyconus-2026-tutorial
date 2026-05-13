@@ -60,20 +60,5 @@ Same benchmarks, run through the CodSpeed CLI for low-noise instrumented
 measurements:
 
 ```bash
-codspeed run uv run pytest --codspeed rounds/3_dna/
+codspeed run --mode walltime -- uv run pytest --codspeed rounds/3_dna/
 ```
-
-## Toolbox for this round
-
-You do not need all of these. Pick a few and measure.
-
-- Stay in `bytes` end-to-end and let `bytes.find()` do the search in C.
-- Stream the file with `readinto()` into a reusable `bytearray` instead of
-  slurping; parse records on the fly.
-- Use a `memoryview` over the buffer so record slicing does not copy.
-- Vectorize with NumPy: view a chunk as `np.uint8`, build a boolean mask of
-  candidate match positions, then resolve full matches.
-- On free-threaded CPython, split the file into byte ranges and search them
-  in parallel; reconcile records that cross chunk boundaries in a final pass.
-- Keep only a small top-K heap if the leaderboard scores on the hottest
-  records, so memory stays bounded as the dataset grows.
