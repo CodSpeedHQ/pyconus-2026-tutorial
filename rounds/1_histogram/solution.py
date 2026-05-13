@@ -17,6 +17,6 @@ def compute_histogram(path: str) -> dict[bytes, int]:
     for i in range(len(data) - 1):
         bytes_mat[data[i]][data[i + 1]] += 1
 
-    counts = {bytes([i, j]): bytes_mat[i][j] for i in range(256) for j in range(256)}
+    counts = {bytes([i, j]): c for i in range(256) for j in range(256) if (c := bytes_mat[i][j])}
 
     return counts
