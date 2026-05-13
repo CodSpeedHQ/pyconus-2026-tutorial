@@ -14,4 +14,9 @@ def compute_histogram(path: str) -> dict[bytes, int]:
     counts = [[0] * 256 for _ in range(256)]
     for i in range(len(data) - 1):
         counts[data[i]][data[i + 1]] += 1
-    return {bytes((i, j)): counts[i][j] for i in range(256) for j in range(256)}
+    return {
+        bytes((i, j)): count
+        for i in range(256)
+        for j in range(256)
+        if (count := counts[i][j])
+    }
