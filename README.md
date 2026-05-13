@@ -1,5 +1,7 @@
 # Python Performance Lab: Sharpening Your Instincts
 
+This is bwhitt7's fork.
+
 A PyCon US 2026 hands-on tutorial. You optimize intentionally slow Python code
 across three rounds plus a team challenge, measuring every change with
 [CodSpeed](https://codspeed.io).
