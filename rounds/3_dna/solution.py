@@ -9,7 +9,7 @@ import re
 from concurrent.futures import ThreadPoolExecutor
 
 def find_match(args):
-        regex,record = args
+        pattern_str,record = args
         # Step 3: a record looks like ``"<id>\n<seq line 1>\n<seq line 2>\n..."``.
         # The id is the first line; the remaining lines are joined back into a
         # single contiguous sequence string.
@@ -18,7 +18,14 @@ def find_match(args):
         sequence = "".join(lines[1:]).replace(" ", "")
 
         positions: list[int] = []
-        positions = [m.start() for m in regex.finditer(sequence)]
+        start = 0
+        while True:
+            pos = sequence.find(pattern_str, start)
+            if pos == -1:
+                break
+            positions.append(pos)
+            start = pos + 1
+
         if positions:
             return (record_id, positions)
         else:
@@ -38,7 +45,6 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
 
     matches: list[tuple[str, list[int]]] = []
     pattern_str = pattern.decode('ascii')
-    regex = re.compile(pattern_str)
 
     with ThreadPoolExecutor() as ex:
         futures = []
@@ -46,7 +52,7 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
             if not record.strip():
                 continue
 
-            t = ex.submit(find_match, args=(regex,record))
+            t = ex.submit(find_match, args=(pattern_str,record))
             futures.append(t)
     
         for t in futures:
