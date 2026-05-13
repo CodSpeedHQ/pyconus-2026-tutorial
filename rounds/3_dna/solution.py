@@ -41,7 +41,7 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     records = [record for record in text.split(">") if record.strip()]
     matches: list[tuple[str, list[int]]] = []
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
+    with ThreadPoolExecutor(max_workers=4) as executor:
         for result in executor.map(_process_record, records, repeat(pattern_str)):
             if result:
                 matches.append(result)
