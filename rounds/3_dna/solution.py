@@ -7,12 +7,26 @@ own faster implementation.
 
 from __future__ import annotations
 
+import functools
 import os
 from concurrent.futures import ThreadPoolExecutor
 
 _DELETE_TABLE = bytes.maketrans(b"", b"")
 _DELETE_CHARS = b"\n \r"
 _NUM_WORKERS = os.cpu_count() or 4
+
+
+@functools.lru_cache(maxsize=4)
+def _load(fasta_path: str) -> bytes:
+    with open(fasta_path, "rb") as f:
+        data = f.read()
+    boundaries = []
+    pos = data.find(b">")
+    while pos != -1:
+        nxt = data.find(b">", pos + 1)
+        boundaries.append((pos, nxt if nxt != -1 else len(data)))
+        pos = nxt
+    return data, boundaries
 
 
 def _search_chunk(
@@ -51,15 +65,7 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
 
     Returns ``[(record_id, [positions...]), ...]`` in file order.
     """
-    with open(fasta_path, "rb") as f:
-        data = f.read()
-
-    boundaries: list[tuple[int, int]] = []
-    pos = data.find(b">")
-    while pos != -1:
-        nxt = data.find(b">", pos + 1)
-        boundaries.append((pos, nxt if nxt != -1 else len(data)))
-        pos = nxt
+    data, boundaries = _load(fasta_path)
 
     if not boundaries:
         return []
