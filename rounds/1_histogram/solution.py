@@ -1,15 +1,16 @@
 """Your Round 1 solution — byte-pair histogram.
 
-Strategy: a tiny native C extension does the counting, and Python only walks
+Strategy: a tiny native extension does the counting, and Python only walks
 the 65 536-bucket result once to materialize the ``dict[bytes, int]``.
 
 - ``histogram_native.c`` mmaps the file, hints SEQUENTIAL access to the
-  kernel, and runs an 8x-unrolled hot loop that reads each overlapping
-  bigram as an unaligned ``uint16`` and bumps its bin. No fread copy, no
-  chunk-boundary bookkeeping, no per-bigram shift/or.
+  kernel, and delegates the hot loop to a hand-written ARM64 assembly
+  routine in ``histogram_native.S`` (one 64-bit ``ldr`` + 8 ``ubfx``
+  extracts per chunk replace 8 ``ldrh`` load µops). On non-aarch64 hosts
+  the .c file falls back to an equivalent 8x-unrolled C loop.
 - The extension is auto-compiled with ``cc -O3`` the first time it is
-  imported and cached under ``__pycache__/``. Rebuilds when the source
-  outpaces the binary.
+  imported and cached under ``__pycache__/``. Rebuilds whenever any
+  source file outpaces the binary.
 - The bin id is the LE-uint16 value of (b0, b1), i.e. ``b1 << 8 | b0``;
   ``_KEY_TABLE`` is precomputed to match so the final dict build is a
   single tight comprehension with no per-bigram byte object allocation.
@@ -19,6 +20,7 @@ from __future__ import annotations
 
 import ctypes
 import os
+import platform
 import subprocess
 import sys
 from pathlib import Path
@@ -50,14 +52,18 @@ def _load_library() -> ctypes.CDLL:
     if _LIB is not None:
         return _LIB
 
-    source = Path(__file__).with_name("histogram_native.c")
-    cache_dir = Path(__file__).with_name("__pycache__")
+    here = Path(__file__).parent
+    c_source = here / "histogram_native.c"
+    sources = [c_source]
+    if platform.machine() in ("arm64", "aarch64"):
+        sources.append(here / "histogram_native.S")
+
+    cache_dir = here / "__pycache__"
     cache_dir.mkdir(exist_ok=True)
     library = cache_dir / "histogram_native.so"
 
-    if (
-        not library.exists()
-        or source.stat().st_mtime > library.stat().st_mtime
+    if not library.exists() or any(
+        s.stat().st_mtime > library.stat().st_mtime for s in sources
     ):
         cc = os.environ.get("CC", "cc")
         subprocess.run(
@@ -67,7 +73,7 @@ def _load_library() -> ctypes.CDLL:
                 "-std=c99",
                 "-shared",
                 "-fPIC",
-                str(source),
+                *[str(s) for s in sources],
                 "-o",
                 str(library),
             ],
