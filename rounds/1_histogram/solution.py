@@ -21,7 +21,10 @@ def compute_histogram(path: str) -> dict[bytes, int]:
     result = {}
     x = y = 0
     while x < 256:
-        result[bytes([x, y])] = counts[x][y]
+        item =  counts[x][y]
+        if item != 0:
+            result[bytes([x, y])] = counts[x][y]
+
         if y == 255:
             x += 1
         y = (y + 1) % 256
