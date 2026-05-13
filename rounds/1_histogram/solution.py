@@ -5,10 +5,11 @@ passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
 
+from collections import Counter
+from itertools import pairwise
+from pathlib import Path
+
 
 def compute_histogram(path: str) -> dict[bytes, int]:
     """Frequency of every 2-byte bigram in the file at ``path``."""
-    # TODO: remove this delegation and write your own implementation here.
-    from .baseline import compute_histogram as _baseline
-
-    return _baseline(path)
+    return Counter(bytes(bigram) for bigram in pairwise(Path(path).read_bytes()))
