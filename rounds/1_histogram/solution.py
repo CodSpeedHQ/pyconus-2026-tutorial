@@ -1,14 +1,21 @@
-"""Your Round 1 solution — byte-pair histogram.
+"""Round 1 solution — byte-pair histogram."""
 
-**Edit this file.** It currently delegates to ``baseline.py`` so everything
-passes out of the box. Replace the body of ``compute_histogram`` with your
-own faster implementation.
-"""
+import numpy as np
 
 
 def compute_histogram(path: str) -> dict[bytes, int]:
-    """Frequency of every 2-byte bigram in the file at ``path``."""
-    # TODO: remove this delegation and write your own implementation here.
-    from .baseline import compute_histogram as _baseline
+    data = np.fromfile(path, dtype=np.uint8)
+    if len(data) < 2:
+        return {}
 
-    return _baseline(path)
+    bigrams = (data[:-1].astype(np.uint16) << 8) | data[1:]
+
+    counts = np.bincount(bigrams, minlength=65536)
+
+    valid_indices = np.nonzero(counts)[0]
+    valid_counts = counts[valid_indices]
+
+    return {
+        int(idx).to_bytes(2, 'big'): int(count) 
+        for idx, count in zip(valid_indices, valid_counts)
+    }
