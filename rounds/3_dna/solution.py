@@ -27,7 +27,10 @@ def _search_chunk(
         nl = data.index(b"\n", rec_start)
         raw = data[nl + 1 : rec_end]
 
-        if pattern not in raw:
+        seq = raw.translate(_DELETE_TABLE, _DELETE_CHARS)
+
+        # Quick check: if the pattern isn't in the cleaned sequence, skip.
+        if pattern not in seq:
             continue
 
         record_id = data[rec_start + 1 : nl].strip().decode("ascii")
