@@ -8,6 +8,7 @@ own faster implementation.
 from .baseline import find_matches as _baseline
 from concurrent.futures import ThreadPoolExecutor
 import threading
+import os
 
 def _thread_worker(pattern_str: str, record: str, matches, lock:threading.Lock):
     if not record.strip():
@@ -40,7 +41,7 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     matches: dict[str, list[int]] = {}
 
     lock = threading.Lock()
-    with ThreadPoolExecutor(max_workers=5) as executor:
+    with ThreadPoolExecutor(max_workers=os.cpu_count()) as executor:
         executor.map(lambda args: _thread_worker(*args),
                      [
                          (pattern_str, record, matches, lock)
