@@ -7,13 +7,10 @@ requires-python = ">=3.13"
 dependencies = ["numpy>=2.0"]
 
 [dependency-groups]
-dev = ["pytest>=8.0", "pytest-codspeed"]
+dev = ["pytest>=8.0", "pytest-codspeed>=5.0.1"]
 
 [tool.pytest.ini_options]
 testpaths = ["rounds"]
 # importlib avoids module-name collisions across the round directories
 # (every round has its own baseline.py).
 addopts = "--import-mode=importlib"
-
-[tool.uv.sources]
-pytest-codspeed = { git = "https://github.com/CodSpeedHQ/pytest-codspeed", rev = "master" }
