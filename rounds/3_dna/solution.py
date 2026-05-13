@@ -15,7 +15,6 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     # TODO: remove this delegation and write your own implementation here.
     # Step 1: read the whole FASTA file as text and decode the pattern so the
     # search below can use a single ``str`` API.
-    pattern_str = pattern.decode("ascii")
     with open(fasta_path, "r") as f:
         text = f.read()
 
@@ -38,9 +37,7 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
         sequence = "".join(lines[1:]).replace(" ", "")
 
         positions: list[int] = []
-        print(sequence)
-        for m in regex.finditer(sequence):
-            positions.append(m.start())
+        positions = [m.start() for m in regex.finditer(sequence)]
         if positions:
             matches.append((record_id, positions))
     return matches
