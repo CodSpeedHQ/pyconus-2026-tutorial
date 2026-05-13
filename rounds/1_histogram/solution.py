@@ -5,17 +5,29 @@ passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
 
+from array import array
+
+
 def compute_histogram(path: str) -> dict[bytes, int]:
     with open(path, "rb") as f:
         data = f.read()
 
-    counts = {}
+    n = len(data)
+    if n < 2:
+        return {}
 
-    for a, b in zip(data, data[1:]):
-        k = (a << 8) | b
-        counts[k] = counts.get(k, 0) + 1
+    # 65,536 possible 2-byte combinations
+    counts = array("I", [0]) * 65536
+
+    prev = data[0]
+
+    for i in range(1, n):
+        curr = data[i]
+        counts[(prev << 8) | curr] += 1
+        prev = curr
 
     return {
-        k.to_bytes(2, "big"): v
-        for k, v in counts.items()
+        i.to_bytes(2, "big"): count
+        for i, count in enumerate(counts)
+        if count
     }
