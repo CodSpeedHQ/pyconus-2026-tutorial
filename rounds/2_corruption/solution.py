@@ -5,10 +5,27 @@ passes out of the box. Replace the body of ``find_corruptions`` with your
 own faster implementation.
 """
 
-from .baseline import find_corruptions as _baseline
+import numpy as np
 
 
 def find_corruptions(ref_path: str, cor_path: str) -> list[tuple[int, int]]:
     """Return ``[(offset, length), ...]`` for every differing byte range."""
-    # TODO: remove this delegation and write your own implementation here.
-    return _baseline(ref_path, cor_path)
+    ref = np.fromfile(ref_path, dtype=np.uint8)
+    cor = np.fromfile(cor_path, dtype=np.uint8)
+
+    if len(ref) != len(cor):
+        raise ValueError("reference and corrupted files differ in length")
+
+    # Single vectorised comparison — runs entirely in C.
+    diff_indices = np.where(ref != cor)[0]
+
+    if len(diff_indices) == 0:
+        return []
+
+    # Find the boundaries between consecutive runs.
+    # A new run starts wherever the gap between adjacent indices exceeds 1.
+    gaps = np.where(np.diff(diff_indices) > 1)[0]
+    starts = diff_indices[np.concatenate(([0], gaps + 1))]
+    ends = diff_indices[np.concatenate((gaps, [len(diff_indices) - 1]))]
+
+    return [(int(s), int(e - s + 1)) for s, e in zip(starts, ends)]
