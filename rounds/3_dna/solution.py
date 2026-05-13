@@ -7,6 +7,7 @@ own faster implementation.
 
 from __future__ import annotations
 
+import mmap
 import os
 from concurrent.futures import ThreadPoolExecutor
 
@@ -16,14 +17,21 @@ _NUM_WORKERS = os.cpu_count() or 4
 
 
 def _search_chunk(
-    data: bytes, pattern: bytes, records: list[tuple[int, int]]
+    data: bytes | mmap.mmap,
+    pattern: bytes,
+    records: list[tuple[int, int]],
 ) -> list[tuple[str, list[int]]]:
     """Process a batch of (header_start, next_record_start) pairs."""
     results: list[tuple[str, list[int]]] = []
     for rec_start, rec_end in records:
         nl = data.index(b"\n", rec_start)
+        raw = data[nl + 1 : rec_end]
+
+        if pattern not in raw:
+            continue
+
         record_id = data[rec_start + 1 : nl].strip().decode("ascii")
-        seq = data[nl + 1 : rec_end].translate(_DELETE_TABLE, _DELETE_CHARS)
+        seq = raw.translate(_DELETE_TABLE, _DELETE_CHARS)
 
         positions: list[int] = []
         start = 0
@@ -46,21 +54,22 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     Returns ``[(record_id, [positions...]), ...]`` in file order.
     """
     with open(fasta_path, "rb") as f:
-        data = f.read()
+        mm = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
 
-    # Serial pass: locate all record boundaries (very fast — just scanning for '>')
     boundaries: list[tuple[int, int]] = []
-    pos = data.find(b">")
+    pos = mm.find(b">")
     while pos != -1:
-        nxt = data.find(b">", pos + 1)
-        boundaries.append((pos, nxt if nxt != -1 else len(data)))
+        nxt = mm.find(b">", pos + 1)
+        boundaries.append((pos, nxt if nxt != -1 else mm.size()))
         pos = nxt
 
     if not boundaries:
+        mm.close()
         return []
 
-    # Partition records into roughly equal chunks for each worker thread.
-    # With free-threaded Python, each thread runs truly in parallel.
+    data = mm[:]
+    mm.close()
+
     n = len(boundaries)
     chunk_size = max(1, n // _NUM_WORKERS)
     chunks = [boundaries[i : i + chunk_size] for i in range(0, n, chunk_size)]
