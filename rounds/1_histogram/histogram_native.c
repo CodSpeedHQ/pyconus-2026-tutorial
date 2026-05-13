@@ -7,6 +7,9 @@
  *     On a little-endian host (every machine we care about) that is a single
  *     load — no shift, no or. The caller adapts its key table to match the
  *     LE bin id (bin = b1<<8 | b0).
+ *   - Histogram buckets are uint32_t: the challenge payloads are at most a
+ *     few hundred MB, so buckets cannot overflow and the table is half the
+ *     size of a uint64_t histogram.
  *   - On ARM64 the hot loop lives in hand-written assembly (see
  *     histogram_native.S) — one 64-bit ldr + 8 ubfx extracts gives all 8
  *     overlapping bigrams in a chunk, replacing 8 ldrh load µops. Other
@@ -25,11 +28,10 @@
 
 #if defined(__aarch64__)
 extern void histogram_hot_loop_asm_single(const uint8_t *data,
-                                          size_t pairs,
-                                          uint64_t *counts);
+                                          size_t pairs, uint32_t *counts);
 #else
 static void histogram_hot_loop_c(const uint8_t *data, size_t pairs,
-                                 uint64_t *counts) {
+                                 uint32_t *counts) {
     const uint8_t *q = data;
     size_t i = 0;
     for (; i + 8 <= pairs; i += 8) {
@@ -61,7 +63,7 @@ static void histogram_hot_loop_c(const uint8_t *data, size_t pairs,
 }
 #endif
 
-int histogram_count_file(const char *path, uint64_t *counts) {
+int histogram_count_file(const char *path, uint32_t *counts) {
     int fd = open(path, O_RDONLY);
     if (fd < 0) {
         return errno ? errno : EIO;
