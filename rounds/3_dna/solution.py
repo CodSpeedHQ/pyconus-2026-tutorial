@@ -7,7 +7,37 @@ own faster implementation.
 
 from __future__ import annotations
 
+import os
 from concurrent.futures import ThreadPoolExecutor
+
+_DELETE_TABLE = bytes.maketrans(b"", b"")
+_DELETE_CHARS = b"\n \r"
+_NUM_WORKERS = os.cpu_count() or 4
+
+
+def _search_chunk(
+    data: bytes, pattern: bytes, records: list[tuple[int, int]]
+) -> list[tuple[str, list[int]]]:
+    """Process a batch of (header_start, next_record_start) pairs."""
+    results: list[tuple[str, list[int]]] = []
+    for rec_start, rec_end in records:
+        nl = data.index(b"\n", rec_start)
+        record_id = data[rec_start + 1 : nl].strip().decode("ascii")
+        seq = data[nl + 1 : rec_end].translate(_DELETE_TABLE, _DELETE_CHARS)
+
+        positions: list[int] = []
+        start = 0
+        _find = seq.find
+        while True:
+            idx = _find(pattern, start)
+            if idx == -1:
+                break
+            positions.append(idx)
+            start = idx + 1
+
+        if positions:
+            results.append((record_id, positions))
+    return results
 
 
 def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]:
@@ -15,44 +45,30 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
 
     Returns ``[(record_id, [positions...]), ...]`` in file order.
     """
-    # Step 1: read the whole FASTA file as text and decode the pattern so the
-    # search below can use a single ``str`` API.
-    pattern_str = pattern.decode("ascii")
-    with open(fasta_path) as f:
-        text = f.read()
+    with open(fasta_path, "rb") as f:
+        data = f.read()
+
+    # Serial pass: locate all record boundaries (very fast — just scanning for '>')
+    boundaries: list[tuple[int, int]] = []
+    pos = data.find(b">")
+    while pos != -1:
+        nxt = data.find(b">", pos + 1)
+        boundaries.append((pos, nxt if nxt != -1 else len(data)))
+        pos = nxt
+
+    if not boundaries:
+        return []
+
+    # Partition records into roughly equal chunks for each worker thread.
+    # With free-threaded Python, each thread runs truly in parallel.
+    n = len(boundaries)
+    chunk_size = max(1, n // _NUM_WORKERS)
+    chunks = [boundaries[i : i + chunk_size] for i in range(0, n, chunk_size)]
 
     matches: list[tuple[str, list[int]]] = []
-
-    with ThreadPoolExecutor() as executor:
-        # Step 2: split the file on '>' to peel off one record at a time. The
-        # first element is the chunk before any header (empty for well-formed
-        # files) and is skipped by the ``.strip()`` guard below.
-        records = [record for record in text.split(">") if record.strip()]
-
-        def process_record(record: str) -> tuple[str, list[int]] | None:
-            # Step 3: a record looks like ``"<id>\n<seq line 1>\n<seq line 2>\n..."``.
-            # The id is the first line; the remaining lines are joined back into a
-            # single contiguous sequence string.
-            lines = record.split("\n")
-            record_id = lines[0].strip()
-            sequence = "".join(lines[1:]).replace(" ", "")
-
-            # Step 4: walk the sequence with ``str.find()``, advancing one byte
-            # past each hit so overlapping matches are reported too.
-            positions: list[int] = []
-            start = 0
-            while True:
-                pos = sequence.find(pattern_str, start)
-                if pos == -1:
-                    break
-                positions.append(pos)
-                start = pos + 1
-
-            if positions:
-                return (record_id, positions)
-            return None
-
-        results = list(executor.map(process_record, records))
-        matches.extend(result for result in results if result is not None)
+    with ThreadPoolExecutor(max_workers=_NUM_WORKERS) as executor:
+        futures = [executor.submit(_search_chunk, data, pattern, chunk) for chunk in chunks]
+        for future in futures:
+            matches.extend(future.result())
 
     return matches
