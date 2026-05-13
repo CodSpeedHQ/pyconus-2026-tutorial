@@ -30,6 +30,17 @@ jobs:
       - name: Install dependencies
         run: uv sync
 
+      - name: Hash the dataset seed
+        # Mix a hash of the secret seed into the cache key so changing the
+        # seed invalidates the cache, without exposing the seed itself
+        # (cache keys are visible in the Actions UI).
+        id: seed-hash
+        env:
+          DATASET_SEED: ${{ secrets.DATASET_SEED }}
+        run: |
+          hash=$(printf '%s' "$DATASET_SEED" | shasum -a 256 | head -c 16)
+          echo "value=$hash" >> "$GITHUB_OUTPUT"
+
       - name: Cache datasets
         id: cache-datasets
         uses: actions/cache@v4
@@ -38,11 +49,13 @@ jobs:
             rounds/1_histogram/data
             rounds/2_corruption/data
             rounds/3_dna/data
-          key: datasets-${{ hashFiles('rounds/*/gen_data.py', 'scripts/setup.py') }}
+          key: datasets-${{ hashFiles('rounds/*/gen_data.py', 'scripts/setup.py') }}-${{ steps.seed-hash.outputs.value }}
 
       - name: Generate datasets
         if: steps.cache-datasets.outputs.cache-hit != 'true'
-        run: uv run python scripts/setup.py
+        env:
+          DATASET_SEED: ${{ secrets.DATASET_SEED }}
+        run: uv run scripts/setup.py ${DATASET_SEED:+--seed "$DATASET_SEED"}
 
       - name: Run correctness tests
         run: uv run pytest -k "not test_bench"

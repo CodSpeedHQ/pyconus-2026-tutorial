@@ -5,6 +5,7 @@ Run from the repo root:
     uv run scripts/setup.py                       # default sizes
     uv run scripts/setup.py --round1-mb 50        # smaller payloads on slow disks
     uv run scripts/setup.py --skip round2 round3  # just round 1
+    uv run scripts/setup.py --seed 1337           # different deterministic data
 """
 
 from __future__ import annotations
@@ -29,6 +30,15 @@ def main() -> int:
     parser.add_argument("--round2-mb", type=int, default=64)
     parser.add_argument("--round3-mb", type=int, default=512)
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help=(
+            "Override the deterministic seed used by every round's generator. "
+            "When omitted, each round uses its own built-in default."
+        ),
+    )
+    parser.add_argument(
         "--skip",
         nargs="*",
         default=[],
@@ -37,10 +47,14 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    shared = []
+    if args.seed is not None:
+        shared = ["--seed", str(args.seed)]
+
     extra_args = {
-        "round1": ["--size-mb", str(args.round1_mb)],
-        "round2": ["--size-mb", str(args.round2_mb)],
-        "round3": ["--size-mb", str(args.round3_mb)],
+        "round1": ["--size-mb", str(args.round1_mb), *shared],
+        "round2": ["--size-mb", str(args.round2_mb), *shared],
+        "round3": ["--size-mb", str(args.round3_mb), *shared],
     }
 
     for name, script in ROUNDS.items():
