@@ -10,13 +10,16 @@ jobs:
   benchmarks:
     name: Run benchmarks
     runs-on: codspeed-macro
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          version: 3.15.0-beta.1
+          python-version: 3.15.0-beta.1
           architecture: arm64-freethreaded
 
       - name: Install uv
@@ -24,14 +27,30 @@ jobs:
         with:
           enable-cache: true
 
+      - name: Rewrite SSH GitHub URLs to HTTPS
+        # pytest-codspeed's git source has a submodule referenced via
+        # git@github.com:... which uv clones recursively and fails on in CI.
+        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
+
       - name: Install dependencies
         run: uv sync
 
+      - name: Cache datasets
+        id: cache-datasets
+        uses: actions/cache@v4
+        with:
+          path: |
+            rounds/1_histogram/data
+            rounds/2_corruption/data
+            rounds/3_dna/data
+          key: datasets-${{ hashFiles('rounds/*/gen_data.py', 'scripts/setup.py') }}
+
       - name: Generate datasets
+        if: steps.cache-datasets.outputs.cache-hit != 'true'
         run: uv run python scripts/setup.py
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@v3
         with:
-          run: uv run pytest --codspeed
           mode: walltime
+          run: uv run pytest --codspeed
