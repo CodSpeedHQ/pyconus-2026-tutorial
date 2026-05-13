@@ -1,61 +1,67 @@
 # Python Performance Lab: Sharpening Your Instincts
 
-PyCon US 2026 tutorial — hands-on Python performance work.
+A PyCon US 2026 hands-on tutorial. You optimize intentionally slow Python code
+across three rounds plus a team challenge, measuring every change with
+[CodSpeed](https://codspeed.io).
 
-You'll work in **optimization rounds**: each starts from a purposely slow
-baseline and ends with a faster, leaner solution. Three rounds plus a final
-team challenge.
+## Rounds
 
-| Round | Topic | Theme |
-|---|---|---|
-| [1](rounds/1_histogram/) | Byte-pair histogram | Data representation + memory |
-| [2](rounds/2_corruption/) | Corruption scanner | Streaming + parallelism + vectorization |
-| [3](rounds/3_dna/) (final) | DNA sequence matcher | Everything together, team challenge |
+| Round                      | Topic                | Skills                                |
+| -------------------------- | -------------------- | ------------------------------------- |
+| [1](rounds/1_histogram/)   | Byte-pair histogram  | Data representation, memory           |
+| [2](rounds/2_corruption/)  | Corruption scanner   | Streaming, parallelism, vectorization |
+| [3](rounds/3_dna/) (final) | DNA sequence matcher | Everything above, as a team challenge |
+
+Each round ships an intentionally slow `baseline.py` (a read-only reference),
+a `solution.py` you edit, deterministic data generators, parametrized
+correctness tests, and benchmarks that run baseline and solution
+side-by-side.
 
 ## Setup
 
-You'll need Python 3.13 or newer and [`uv`](https://docs.astral.sh/uv/).
+You need [`uv`](https://docs.astral.sh/uv/) and Python 3.15t.
 
 ```bash
-uv sync                              # install pytest, pytest-codspeed, numpy
-python scripts/setup.py              # generate all datasets (~650 MB total)
+uv sync                   # install pytest, pytest-codspeed, numpy.
+python scripts/setup.py   # generate all datasets (~650 MB total).
 ```
 
-Smaller machines:
+Generate smaller datasets on lower-spec machines:
 
 ```bash
 python scripts/setup.py --round1-mb 10 --round2-mb 32 --round3-mb 100
 ```
 
-## Run a round
+## Working on a round
 
-Each round directory has its own `README.md`. The shape is always the same:
+Every round directory ships its own `README.md`. The commands are the same
+shape every time, illustrated here for Round 1:
 
 ```bash
-# correctness (fast — runs against a small fixture)
+# Correctness tests against the small fixture.
 uv run pytest rounds/1_histogram/
 
-# benchmark (local timing; runs against the full dataset)
+# Walltime benchmark against the full dataset.
 uv run pytest --codspeed rounds/1_histogram/
 
-# benchmark via CodSpeed CLI (instrumented)
+# Same, run through the CodSpeed CLI for low-noise instrumented measurements.
 codspeed run uv run pytest --codspeed rounds/1_histogram/
 ```
 
-Optimize by editing the **`solution.py`** in that round (not `baseline.py` —
-the baseline stays put as the reference for comparison). Every test and
-benchmark runs against both implementations, so the output always shows
-`[baseline]` vs `[solution]` side-by-side.
+Edit `solution.py` to optimize. Leave `baseline.py` alone so the side-by-side
+comparison stays meaningful. Every test and benchmark is parametrized over
+both implementations, so the output always shows `[baseline]` versus
+`[solution]`.
 
-## Repository layout
+## Layout
 
 ```
 rounds/
-  1_histogram/        # baseline.py + gen_data.py + tests + benches
+  1_histogram/             # baseline.py, solution.py, gen_data.py, tests.
   2_corruption/
   3_dna/
 scripts/
-  setup.py                 # one-shot data generation
+  setup.py                 # one-shot data generation across every round.
 ```
 
-The `data/` directory inside each round is **generated locally** (gitignored).
+Each round's `data/` directory is generated locally and gitignored.
