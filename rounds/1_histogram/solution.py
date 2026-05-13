@@ -1,14 +1,15 @@
-"""Your Round 1 solution — byte-pair histogram.
+"""Your Round 1 solution — byte-pair histogram."""
 
-**Edit this file.** It currently delegates to ``baseline.py`` so everything
-passes out of the box. Replace the body of ``compute_histogram`` with your
-own faster implementation.
-"""
+import numpy as np
+import mmap
 
 
 def compute_histogram(path: str) -> dict[bytes, int]:
     """Frequency of every 2-byte bigram in the file at ``path``."""
-    # TODO: remove this delegation and write your own implementation here.
-    from .baseline import compute_histogram as _baseline
-
-    return _baseline(path)
+    with open(path, "rb") as f:
+        with mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ) as mm:
+            # Copy while mmap is still open — no exported pointer issue
+            data = np.frombuffer(mm, dtype=np.uint8).copy()
+        keys = data[:-1].astype(np.uint16) << 8 | data[1:].astype(np.uint16)
+        counts = np.bincount(keys, minlength=65536)
+    return {bytes([k >> 8, k & 0xFF]): int(counts[k]) for k in np.nonzero(counts)[0]}
