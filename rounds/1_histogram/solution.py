@@ -4,32 +4,23 @@
 passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
-from collections import defaultdict
-from mmap import mmap, ACCESS_READ
 
-def b2i(low: int, high: int) -> int:
-    return high + (low << 8)
+import numpy as np
 
-def i2b(x: int) -> bytes:
-    return bytes([(x & 0xFF00) >> 8, x & 0xFF])
 
 def compute_histogram(path: str) -> dict[bytes, int]:
     """Frequency of every 2-byte bigram in the file at ``path``."""
-    # Step 1: read the whole file into memory as a single bytes object.
-    counts = [0 for _ in range(2**16)]
+    with open(path, "rb") as f:
+        data = f.read()
 
-    source = open(path, "rb", buffering=0)
-    data = mmap(source.fileno(), 0, access=ACCESS_READ)
+    arr = np.frombuffer(data, dtype=np.uint8)
 
-    # Step 2: slide a 2-byte window across the buffer. For ``b"ABCD"`` the
-    # iterations produce ``b"AB"``, ``b"BC"``, then ``b"CD"``. For each window,
-    # bump the matching bucket in a ``dict`` keyed by the bigram itself.
-    previous = data[0]
-    for i in range(len(data) - 1):
-        current = data[i + 1]
-        counts[current + (previous << 8)] += 1
-        previous = current
+    # Vectorised bigram index: first_byte * 256 + second_byte
+    bigram_indices = arr[:-1].astype(np.uint16) * 256 + arr[1:]
 
-    return {
-        i2b(idx): value for idx, value in enumerate(counts) if value != 0
-    }
+    # Count every bigram in a single pass (C-level loop inside numpy)
+    counts = np.bincount(bigram_indices, minlength=65536)
+
+    # Build the result dict from non-zero entries only
+    nonzero = np.flatnonzero(counts)
+    return {int(idx).to_bytes(2, "big"): int(counts[idx]) for idx in nonzero}
