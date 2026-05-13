@@ -11,10 +11,12 @@ def compute_histogram(path: str) -> dict[bytes, int]:
     with open(path, "rb") as f:
         data = f.read()
     counts: dict[bytes, int] = {}
+    bigrams_seen = set()
     for i in range(len(data) - 1):
         bigram = data[i : i + 2]
-        if bigram in counts:
+        if bigram in bigrams_seen:
             counts[bigram] += 1
         else:
+            bigrams_seen.add(bigram)
             counts[bigram] = 1
     return counts
