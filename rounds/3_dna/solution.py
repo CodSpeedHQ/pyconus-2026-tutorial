@@ -5,105 +5,80 @@ passes out of the box. Replace the body of ``find_matches`` with your
 own faster implementation.
 """
 
+from __future__ import annotations
+
+import os
 from concurrent.futures import ThreadPoolExecutor
-from threading import Thread
 
-
-def find_matches_in_sequence(
-    record_id: str,
-    sequence: str,
-    pattern_str: str,
-    matches: list[tuple[str, list[int]]],
-):
-    """Find matches in a single sequence and append to the shared matches list."""
-    positions: list[int] = []
-    start = 0
-    while True:
-        pos = sequence.find(pattern_str, start)
-        if pos == -1:
-            break
-        positions.append(pos)
-        start = pos + 1
-
-    if positions:
-        matches.append((record_id, positions))
-
-
-def find_matches_many_threads(
-    fasta_path: str, pattern: bytes
-) -> list[tuple[str, list[int]]]:
-    # Step 1: read the whole FASTA file as text and decode the pattern so the
-    # search below can use a single ``str`` API.
-    pattern_str = pattern.decode("ascii")
-    with open(fasta_path, "r") as f:
-        text = f.read()
-
-    matches: list[tuple[str, list[int]]] = []
-
-    # Preprocess the sequences
-    sequences = []
-    for record in text.split(">"):
-        if not record.strip():
-            continue
-        lines = record.split("\n")
-        record_id = lines[0].strip()
-        sequence = "".join(lines[1:]).replace(" ", "")
-        sequences.append((record_id, sequence))
-    threads = []
-    for record_id, sequence in sequences:
-        thread = Thread(
-            target=find_matches_in_sequence,
-            args=(record_id, sequence, pattern_str, matches),
-        )
-        thread.start()
-        threads.append(thread)
-    # Wait for all threads to finish
-    print(f"Waiting for {len(threads)} threads to finish...")
-    for thread in threads:
-        thread.join()
-
-    return matches
+_NL = 0x0A  # b"\n"
 
 
 def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]:
-    # Step 1: read the whole FASTA file as text and decode the pattern so the
-    # search below can use a single ``str`` API.
-    pattern_str = pattern.decode("ascii")
-    with open(fasta_path, "r") as f:
-        text = f.read()
+    with open(fasta_path, "rb") as f:
+        data = f.read()
 
-    matches: list[tuple[str, list[int]]] = []
+    # Step 1: locate every record start. A record starts with ``>`` either at
+    # offset 0 or immediately after a ``\n``.
+    starts: list[int] = []
+    i = 0
+    while True:
+        p = data.find(b">", i)
+        if p == -1:
+            break
+        if p == 0 or data[p - 1] == _NL:
+            starts.append(p)
+        i = p + 1
+    starts.append(len(data))  # sentinel marking the end of the last record.
 
-    # Preprocess the sequences
-    sequences = []
-    for record in text.split(">"):
-        if not record.strip():
-            continue
-        lines = record.split("\n")
-        record_id = lines[0].strip()
-        sequence = "".join(lines[1:]).replace(" ", "")
-        sequences.append((record_id, sequence))
+    num_records = len(starts) - 1
+    if num_records <= 0:
+        return []
 
-    # Create a pool of threads
-    pool = ThreadPoolExecutor(max_workers=16)
+    # Step 2: parallel scan. Choose enough batches to keep workers balanced
+    # even when record sizes vary.
+    n_workers = max(1, os.cpu_count() or 1)
+    batches = max(1, n_workers * 4)
+    batch_size = max(1, (num_records + batches - 1) // batches)
 
-    for record_id, sequence in sequences:
-        pool.submit(
-            find_matches_in_sequence,
-            record_id,
-            sequence,
-            pattern_str,
-            matches,
-        )
-    # Or
-    # pool.map(
-    #     lambda args: find_matches_in_sequence(*args),
-    #     [
-    #         (record_id, sequence, pattern_str, matches)
-    #         for record_id, sequence in sequences
-    #     ],
-    # )
-    # Wait for all threads to finish
-    pool.shutdown(wait=True)
+    def scan_batch(start_idx: int, end_idx: int) -> list[tuple[int, str, list[int]]]:
+        out: list[tuple[int, str, list[int]]] = []
+        for j in range(start_idx, end_idx):
+            rec_start = starts[j]
+            rec_end = starts[j + 1]
 
-    return matches
+            # Locate the end of the header line within this record's slice.
+            nl = data.find(b"\n", rec_start, rec_end)
+            if nl <= rec_start:
+                continue  # Malformed or header-only.
+
+            record_id = data[rec_start + 1 : nl].decode("ascii").strip()
+
+            # Contiguous sequence: drop the newlines so matches that straddle
+            # line breaks are still found by ``bytes.find``.
+            sequence = data[nl + 1 : rec_end].replace(b"\n", b"")
+
+            positions: list[int] = []
+            s = 0
+            while True:
+                p = sequence.find(pattern, s)
+                if p == -1:
+                    break
+                positions.append(p)
+                s = p + 1
+
+            if positions:
+                out.append((j, record_id, positions))
+        return out
+
+    with ThreadPoolExecutor(max_workers=n_workers) as pool:
+        futures = [
+            pool.submit(scan_batch, lo, min(lo + batch_size, num_records))
+            for lo in range(0, num_records, batch_size)
+        ]
+        chunks = [f.result() for f in futures]
+
+    # Step 3: flatten and restore file order (record index is monotonic per
+    # batch, but batches finish in arbitrary order).
+    flat = [item for chunk in chunks for item in chunk]
+    flat.sort(key=lambda triple: triple[0])
+    return [(rid, positions) for _, rid, positions in flat]
