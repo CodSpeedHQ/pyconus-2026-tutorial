@@ -13,34 +13,11 @@ own faster implementation.
 
     #return _baseline(path)
 
-from array import array
+def histogram_dict(counts: list[int]) -> dict[bytes, int]:
+    out = {}
 
+    for i, count in enumerate(counts):
+        if count:
+            out[i.to_bytes(2, "big")] = count
 
-def compute_histogram(path: str) -> list[int]:
-    """
-    Frequency table for every 2-byte bigram.
-
-    Result index:
-        index = (byte1 << 8) | byte2
-
-    Example:
-        b"AB" -> (65 << 8) | 66
-    """
-    with open(path, "rb") as f:
-        data = f.read()
-
-    n = len(data)
-    if n < 2:
-        return [0] * 65536
-
-    # Fixed-size contiguous integer array
-    counts = array('I', [0]) * 65536
-
-    prev = data[0]
-
-    for i in range(1, n):
-        curr = data[i]
-        counts[(prev << 8) | curr] += 1
-        prev = curr
-
-    return counts
+    return out
