@@ -4,7 +4,6 @@
 passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
-from collections import defaultdict
 
 
 def compute_histogram(path: str) -> dict[bytes, int]:
