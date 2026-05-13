@@ -27,11 +27,6 @@ jobs:
         with:
           enable-cache: true
 
-      - name: Rewrite SSH GitHub URLs to HTTPS
-        # pytest-codspeed's git source has a submodule referenced via
-        # git@github.com:... which uv clones recursively and fails on in CI.
-        run: git config --global url."https://github.com/".insteadOf "git@github.com:"
-
       - name: Install dependencies
         run: uv sync
 
