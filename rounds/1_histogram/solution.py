@@ -5,24 +5,22 @@ passes out of the box. Replace the body of ``compute_histogram`` with your
 own faster implementation.
 """
 
+import numpy as np
+
 
 def compute_histogram(path: str) -> dict[bytes, int]:
     """Frequency of every 2-byte bigram in the file at ``path``."""
-    # Step 1: read the whole file into memory as a single bytes object.
     with open(path, "rb") as f:
         data = f.read()
 
-    # Create a 2D matrix to count bigrams
-    counts = [[0] * 256 for _ in range(256)]
+    arr = np.frombuffer(data, dtype=np.uint8)
 
-    for i in range(len(data) - 1):
-        # Increment the count in each cell
-        counts[data[i]][data[i + 1]] += 1
+    # Vectorised bigram index: first_byte * 256 + second_byte
+    bigram_indices = arr[:-1].astype(np.uint16) * 256 + arr[1:]
 
-    # Convert the matrix to the original format
-    output = {}
-    for i in range(256):
-        for j in range(256):
-            if counts[i][j] > 0:
-                output[bytes([i, j])] = counts[i][j]
-    return output
+    # Count every bigram in a single pass (C-level loop inside numpy)
+    counts = np.bincount(bigram_indices, minlength=65536)
+
+    # Build the result dict from non-zero entries only
+    nonzero = np.flatnonzero(counts)
+    return {int(idx).to_bytes(2, "big"): int(counts[idx]) for idx in nonzero}
