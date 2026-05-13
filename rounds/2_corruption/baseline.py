@@ -1,8 +1,7 @@
 """Round 2 baseline — corruption scanner.
 
 Compares two equally-sized binary files and reports every contiguous run of
-differing bytes as ``(offset, length)``. This baseline is *intentionally* slow:
-it slurps both files into memory and walks them byte-by-byte in pure Python.
+differing bytes as ``(offset, length)``.
 """
 
 from __future__ import annotations

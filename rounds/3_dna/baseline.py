@@ -1,9 +1,7 @@
 """Round 3 baseline — DNA sequence matcher.
 
 Parses a FASTA-like file and returns every record whose nucleotide sequence
-contains a given pattern, along with the positions of each occurrence. This
-baseline is *intentionally* slow: it reads the entire file as text, splits it
-into records, and converts between ``str`` and ``bytes`` repeatedly.
+contains a given pattern, along with the positions of each occurrence.
 """
 
 from __future__ import annotations
