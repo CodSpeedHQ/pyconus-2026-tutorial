@@ -19,17 +19,17 @@ side-by-side.
 
 ## Setup
 
-You need [`uv`](https://docs.astral.sh/uv/) and Python 3.15t.
+You need [`uv`](https://docs.astral.sh/uv/). Python 3.15t will be downloaded directly.
 
 ```bash
 uv sync                   # install pytest, pytest-codspeed, numpy.
-python scripts/setup.py   # generate all datasets (~650 MB total).
+uv run scripts/setup.py   # generate all datasets (~650 MB total).
 ```
 
 Generate smaller datasets on lower-spec machines:
 
 ```bash
-python scripts/setup.py --round1-mb 10 --round2-mb 32 --round3-mb 100
+uv run scripts/setup.py --round1-mb 10 --round2-mb 32 --round3-mb 100
 ```
 
 ## Working on a round

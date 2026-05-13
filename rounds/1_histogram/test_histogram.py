@@ -46,7 +46,7 @@ def fixture_path() -> Path:
     if not FIXTURE_PATH.exists():
         pytest.fail(
             f"missing fixture: {FIXTURE_PATH}\n"
-            "Run `python scripts/setup.py` (or `python rounds/1_histogram/gen_data.py`) first."
+            "Run `uv run scripts/setup.py` (or `uv run rounds/1_histogram/gen_data.py`) first."
         )
     return FIXTURE_PATH
 
@@ -68,7 +68,7 @@ def test_total_count_equals_bigram_count(
 def test_bench_compute_histogram(implementation, benchmark) -> None:
     if not PAYLOAD_PATH.exists():
         pytest.skip(
-            f"missing payload: {PAYLOAD_PATH}. Run `python scripts/setup.py` first."
+            f"missing payload: {PAYLOAD_PATH}. Run `uv run scripts/setup.py` first."
         )
     result = benchmark(implementation, str(PAYLOAD_PATH))
     assert sum(result.values()) > 0

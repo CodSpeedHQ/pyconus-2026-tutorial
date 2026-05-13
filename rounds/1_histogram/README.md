@@ -1,38 +1,44 @@
-# Round 1 — Byte-pair histogram
+# Round 1: Byte-pair histogram
 
 ## Problem
 
-Given a binary payload of up to a few hundred megabytes, count the frequency of
-every **2-byte bigram**. The output is a mapping from each observed bigram to
-its occurrence count.
+Given a binary payload of up to a few hundred megabytes, count the frequency
+of every **2-byte bigram**. The output is a mapping from each observed bigram
+to its occurrence count.
 
-- Input: `data/payload.bin` (default 10 MB, biased byte distribution)
-- Output: `dict` (or equivalent) keyed by 2-byte token → integer count
-- Universe: up to 65,536 distinct bigrams
+A **bigram** is a sliding window of two adjacent bytes. For the payload
+`b"ABCD"` the bigrams are `b"AB"`, `b"BC"`, and `b"CD"`. An `N`-byte payload
+therefore contains `N - 1` bigrams. With 256 possible byte values each, the
+full universe is `256 * 256 = 65,536` distinct tokens.
+
+- Input: `data/payload.bin` (default 10 MB, biased byte distribution).
+- Output: a `dict` (or equivalent) keyed by 2-byte token, mapped to an `int` count.
+- Universe: up to 65,536 distinct bigrams.
 
 ## What "fast" means here
 
-Primarily **memory footprint** and **end-to-end wall time**. The naive approach
-allocates an enormous number of tiny `bytes` objects — those allocations are
-exactly the cost you want to drive down.
+Primarily **memory footprint** and **end-to-end walltime**. The naive
+approach allocates an enormous number of tiny `bytes` objects, and those
+allocations are exactly the cost you want to drive down.
 
 ## Files
 
-| File | Purpose |
-|---|---|
-| `baseline.py` | The intentionally slow starting point. **Don't edit** — it's the reference for the comparison. |
-| `solution.py` | **Edit this.** Starts out delegating to `baseline.py`; replace with your faster implementation. |
-| `gen_data.py` | Generates `data/payload.bin` and `data/fixture/payload.bin`. |
-| `test_histogram.py` | Correctness tests + pytest-codspeed benchmark. Every test is parametrized to run against both the baseline and your solution. |
+| File                  | Purpose                                                                                                                          |
+| --------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `baseline.py`         | Intentionally slow starting point. **Don't edit:** it is the reference for the comparison.                                       |
+| `solution.py`         | **Edit this.** Starts out delegating to `baseline.py`; replace with your faster implementation.                                  |
+| `gen_data.py`         | Generates `data/payload.bin` and `data/fixture/payload.bin`.                                                                     |
+| `test_histogram.py`   | Correctness tests and the pytest-codspeed benchmark. Every test is parametrized over both the baseline and your solution.        |
 
 ## Generate the data
 
 ```bash
-python rounds/1_histogram/gen_data.py            # default 10 MB
-python rounds/1_histogram/gen_data.py --size-mb 50
+uv run rounds/1_histogram/gen_data.py            # default 10 MB.
+uv run rounds/1_histogram/gen_data.py --size-mb 50
 ```
 
-(Or run `python scripts/setup.py` to generate every round's data at once.)
+Or run `uv run scripts/setup.py` to generate every round's data in
+one go.
 
 ## Verify correctness
 
@@ -42,11 +48,14 @@ uv run pytest rounds/1_histogram/
 
 ## Benchmark
 
+Walltime, locally:
+
 ```bash
 uv run pytest --codspeed rounds/1_histogram/
 ```
 
-CodSpeed CLI (instrumented):
+Same benchmarks, run through the CodSpeed CLI for low-noise instrumented
+measurements:
 
 ```bash
 codspeed run uv run pytest --codspeed rounds/1_histogram/
@@ -54,11 +63,12 @@ codspeed run uv run pytest --codspeed rounds/1_histogram/
 
 ## Toolbox for this round
 
-You don't need all of these — pick a few and measure.
+You do not need all of these. Pick a few and measure.
 
 - Stay in `bytes` end-to-end; skip the text-mode round-trip.
-- `memoryview` over the buffer to avoid slice allocations.
+- Use a `memoryview` over the buffer to avoid slice allocations.
 - Represent each bigram as an `int` (`(b0 << 8) | b1`) and count into a
   preallocated `array('I')` (or `list`) of length 65,536.
-- Stream with `readinto()` into a reusable `bytearray` to keep peak memory flat.
-- Convert back to `dict[bytes, int]` only at the very end (or change the API).
+- Stream with `readinto()` into a reusable `bytearray` to keep peak memory
+  flat.
+- Convert back to `dict[bytes, int]` only at the very end, or change the API.

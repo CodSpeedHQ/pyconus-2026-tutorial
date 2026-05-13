@@ -2,8 +2,8 @@
 
 Run from anywhere:
 
-    python rounds/2_corruption/gen_data.py             # default 64 MB
-    python rounds/2_corruption/gen_data.py --size-mb 1024
+    uv run rounds/2_corruption/gen_data.py             # default 64 MB
+    uv run rounds/2_corruption/gen_data.py --size-mb 1024
 
 Output:
     rounds/2_corruption/data/reference.bin

@@ -21,18 +21,18 @@ C-level routines.
 
 ## Files
 
-| File | Purpose |
-|---|---|
-| `baseline.py` | The intentionally slow starting point. **Don't edit** — it's the reference for the comparison. |
-| `solution.py` | **Edit this.** Starts out delegating to `baseline.py`; replace with your faster implementation. |
-| `gen_data.py` | Generates the FASTA file and a `truth.json` with expected matches. |
+| File          | Purpose                                                                                                                       |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `baseline.py` | The intentionally slow starting point. **Don't edit** — it's the reference for the comparison.                                |
+| `solution.py` | **Edit this.** Starts out delegating to `baseline.py`; replace with your faster implementation.                               |
+| `gen_data.py` | Generates the FASTA file and a `truth.json` with expected matches.                                                            |
 | `test_dna.py` | Correctness tests + pytest-codspeed benchmark. Every test is parametrized to run against both the baseline and your solution. |
 
 ## Generate the data
 
 ```bash
-python rounds/3_dna/gen_data.py             # default ~512 MB
-python rounds/3_dna/gen_data.py --size-mb 100
+uv run rounds/3_dna/gen_data.py             # default ~512 MB
+uv run rounds/3_dna/gen_data.py --size-mb 100
 ```
 
 ## Verify correctness

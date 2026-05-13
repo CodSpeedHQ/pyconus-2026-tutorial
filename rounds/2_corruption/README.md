@@ -20,18 +20,18 @@ do the actual comparison in C (NumPy, `bytes` equality, etc.).
 
 ## Files
 
-| File | Purpose |
-|---|---|
-| `baseline.py` | The intentionally slow starting point. **Don't edit** — it's the reference for the comparison. |
-| `solution.py` | **Edit this.** Starts out delegating to `baseline.py`; replace with your faster implementation. |
-| `gen_data.py` | Generates the reference + corrupted pair plus a `truth.json`. |
+| File                 | Purpose                                                                                                                       |
+| -------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `baseline.py`        | The intentionally slow starting point. **Don't edit** — it's the reference for the comparison.                                |
+| `solution.py`        | **Edit this.** Starts out delegating to `baseline.py`; replace with your faster implementation.                               |
+| `gen_data.py`        | Generates the reference + corrupted pair plus a `truth.json`.                                                                 |
 | `test_corruption.py` | Correctness tests + pytest-codspeed benchmark. Every test is parametrized to run against both the baseline and your solution. |
 
 ## Generate the data
 
 ```bash
-python rounds/2_corruption/gen_data.py                 # default 64 MB
-python rounds/2_corruption/gen_data.py --size-mb 1024  # 1 GB stretch goal
+uv run rounds/2_corruption/gen_data.py                 # default 64 MB
+uv run rounds/2_corruption/gen_data.py --size-mb 1024  # 1 GB stretch goal
 ```
 
 ## Verify correctness

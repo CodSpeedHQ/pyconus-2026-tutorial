@@ -2,8 +2,8 @@
 
 Run from anywhere:
 
-    python rounds/3_dna/gen_data.py            # default ~512 MB
-    python rounds/3_dna/gen_data.py --size-mb 100
+    uv run rounds/3_dna/gen_data.py            # default ~512 MB
+    uv run rounds/3_dna/gen_data.py --size-mb 100
 
 Output:
     rounds/3_dna/data/genome.fasta

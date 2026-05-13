@@ -2,9 +2,9 @@
 
 Run from the repo root:
 
-    python scripts/setup.py                       # default sizes
-    python scripts/setup.py --round1-mb 50        # smaller payloads on slow disks
-    python scripts/setup.py --skip round2 round3  # just round 1
+    uv run scripts/setup.py                       # default sizes
+    uv run scripts/setup.py --round1-mb 50        # smaller payloads on slow disks
+    uv run scripts/setup.py --skip round2 round3  # just round 1
 """
 
 from __future__ import annotations

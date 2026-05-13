@@ -43,7 +43,7 @@ def fixture_paths() -> tuple[Path, Path, list[tuple[int, int]]]:
     if not (ref.exists() and cor.exists() and truth_file.exists()):
         pytest.fail(
             f"missing fixture under {DATA_DIR}\n"
-            "Run `python scripts/setup.py` (or `python rounds/2_corruption/gen_data.py`) first."
+            "Run `uv run scripts/setup.py` (or `uv run rounds/2_corruption/gen_data.py`) first."
         )
     truth = json.loads(truth_file.read_text())
     expected = [tuple(r) for r in truth["ranges"]]
@@ -70,7 +70,7 @@ def test_identical_files_yield_no_ranges(implementation, tmp_path: Path) -> None
 def test_bench_find_corruptions(implementation, benchmark) -> None:
     if not (REF_PATH.exists() and COR_PATH.exists()):
         pytest.skip(
-            f"missing dataset under {DATA_DIR}. Run `python scripts/setup.py` first."
+            f"missing dataset under {DATA_DIR}. Run `uv run scripts/setup.py` first."
         )
     result = benchmark(implementation, str(REF_PATH), str(COR_PATH))
     assert isinstance(result, list)

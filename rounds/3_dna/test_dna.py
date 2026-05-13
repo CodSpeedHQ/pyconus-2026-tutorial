@@ -42,7 +42,7 @@ def fixture() -> tuple[Path, bytes, list[tuple[str, list[int]]]]:
     if not (fasta.exists() and truth_file.exists()):
         pytest.fail(
             f"missing fixture under {DATA_DIR}\n"
-            "Run `python scripts/setup.py` (or `python rounds/3_dna/gen_data.py`) first."
+            "Run `uv run scripts/setup.py` (or `uv run rounds/3_dna/gen_data.py`) first."
         )
     truth = json.loads(truth_file.read_text())
     pattern = truth["pattern"].encode("ascii")
@@ -69,7 +69,7 @@ def test_short_synthetic_input(implementation, tmp_path: Path) -> None:
 def test_bench_find_matches(implementation, benchmark) -> None:
     if not FASTA_PATH.exists() or not TRUTH_PATH.exists():
         pytest.skip(
-            f"missing dataset under {DATA_DIR}. Run `python scripts/setup.py` first."
+            f"missing dataset under {DATA_DIR}. Run `uv run scripts/setup.py` first."
         )
     pattern = json.loads(TRUTH_PATH.read_text())["pattern"].encode("ascii")
     result = benchmark(implementation, str(FASTA_PATH), pattern)

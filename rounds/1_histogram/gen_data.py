@@ -2,8 +2,8 @@
 
 Run from anywhere:
 
-    python rounds/1_histogram/gen_data.py            # default 10 MB
-    python rounds/1_histogram/gen_data.py --size-mb 50
+    uv run rounds/1_histogram/gen_data.py            # default 10 MB
+    uv run rounds/1_histogram/gen_data.py --size-mb 50
 
 Output:
     rounds/1_histogram/data/payload.bin           — full benchmark dataset
