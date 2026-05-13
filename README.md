@@ -28,6 +28,8 @@ up as a side-by-side comparison against your own baseline.
 ```bash
 # 1. Fork github.com/CodSpeedHQ/pyconus-2026-tutorial, then clone your fork.
 git clone https://github.com/<you>/pyconus-2026-tutorial && cd pyconus-2026-tutorial
+# or better, use the GitHub CLI:
+gh repo fork CodSpeedHQ/pyconus-2026-tutorial --clone=true && cd pyconus-2026-tutorial
 
 # 2. Install deps + generate the datasets (~650 MB total).
 uv sync
@@ -37,8 +39,17 @@ uv run scripts/setup.py
 curl -L https://codspeed.io/install.sh | sh
 codspeed auth login
 
-# 4. Branch off. Every push to this branch re-runs and re-ranks you.
+# 4. Make a first CodSpeed local run and access the performance report
+codspeed run --mode walltime -- uv run pytest --codspeed
+
+# 5. Branch off and create a pr on the main repo. Every push to this branch re-runs and re-ranks you.
 git checkout -b <your-name>
+# Make a small change like adding your name in the README.md for example, and commit:
+echo "This is <your-name>'s PR" >> README.md
+git add README.md
+git commit -m "Add <your-name> to the README"
+# Push and open a PR against the main repo:
+gh pr create --title "[username] performance improvements" --base main --repo CodSpeedHQ/pyconus-2026-tutorial
 ```
 
 Generate smaller datasets on lower-spec machines:
