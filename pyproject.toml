@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Python Performance Lab: Sharpening Your Instincts — PyCon US 2026 tutorial"
 readme = "README.md"
 requires-python = ">=3.13"
-dependencies = ["numpy>=2.0"]
+dependencies = [
+    "numpy>=2.0",
+]
 
 [dependency-groups]
 dev = ["pytest>=8.0", "pytest-codspeed>=5.0.1"]

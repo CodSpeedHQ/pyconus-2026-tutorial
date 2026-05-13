@@ -35,7 +35,7 @@ gh repo fork CodSpeedHQ/pyconus-2026-tutorial --clone=true && cd pyconus-2026-tu
 uv sync
 uv run scripts/setup.py
 
-# 3. Install the CodSpeed CLI and log in.
+# 3. Install the CodSpeed CLI and log in (worth noting that this is tricky on Windows)
 curl -L https://codspeed.io/install.sh | sh
 codspeed auth login
 
