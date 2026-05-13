@@ -8,7 +8,7 @@ own faster implementation.
 from .baseline import find_matches as _baseline
 
 
-def find_matches(fasta_path: str, pattern: bytes.split) -> list[tuple[str, list[int]]]:
+def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]:
     """Find every FASTA record whose sequence contains ``pattern``.
 
     Returns ``[(record_id, [positions...]), ...]`` in file order.
