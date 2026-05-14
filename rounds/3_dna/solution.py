@@ -5,10 +5,11 @@ passes out of the box. Replace the body of ``find_matches`` with your
 own faster implementation.
 """
 
-from mmap import mmap, ACCESS_READ
+import os
+from mmap import mmap, ACCESS_READ, MADV_RANDOM, MADV_WILLNEED
 from concurrent.futures import ThreadPoolExecutor, wait
 
-def _subsearch(raw, record_id_start: int, data_start: int, data_end: int, pattern: bytes):
+def _subsearch(raw, pattern, record_id_start: int, data_start: int, data_end: int):
     plen = len(pattern)
     data = bytes(raw[data_start : data_end - 1]).replace(b"\n", b"")
     locations = []
@@ -30,6 +31,7 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     """
     source = open(fasta_path, "rb")
     data = mmap(source.fileno(), 0, access=ACCESS_READ)
+    data.madvise(MADV_RANDOM | MADV_WILLNEED)
 
     last = -1
 
@@ -37,7 +39,9 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
     while data[data_end] == b"\n":
         data_end -= 1
 
-    with ThreadPoolExecutor(max_workers=16) as executor:
+    n_workers = os.cpu_count() or 1
+
+    with ThreadPoolExecutor(max_workers=n_workers) as executor:
         records = []
         while data_end > 0:
             gt_pos = data.rfind(b">", 0, data_end)
@@ -53,10 +57,10 @@ def find_matches(fasta_path: str, pattern: bytes) -> list[tuple[str, list[int]]]
             data_start = nl_pos + 1
 
             records.append(
-                executor.submit(_subsearch, data, record_id_start, data_start, data_end, pattern)
+                executor.submit(_subsearch, data, pattern, record_id_start, data_start, data_end)
             )
             data_end = gt_pos
 
-        results = [d.result() for d in records if d.result() is not None]
+        results = [d.result() for d in records]
         results.reverse()
-        return results
+        return [r for r in results if r is not None]
